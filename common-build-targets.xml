@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project xmlns:xdb="http://exist-db.org/ant" name="common-build-targets">
+
+    <target name="increase-patch" description="Increase patch number">
+        <propertyfile file="build.properties">
+            <entry key="project.version.patch" type="int" operation="+" value="1" pattern="0"/>
+        </propertyfile>
+    </target>
+
+    <target name="increase-minor" description="Increase minor number">
+        <propertyfile file="build.properties">
+            <entry key="project.version.minor" type="int" operation="+" value="1" pattern="0"/>
+            <entry key="project.version.patch" type="int" value="0" pattern="0"/>
+        </propertyfile>
+    </target>
+
+    <target name="increase-major" description="Increase major number">
+        <propertyfile file="build.properties">
+            <entry key="project.version.major" type="int" operation="+" value="1" pattern="0"/>
+            <entry key="project.version.minor" type="int" value="0" pattern="0"/>
+            <entry key="project.version.patch" type="int" value="0" pattern="0"/>
+        </propertyfile>
+    </target>
+
+    <target name="update-build-date">
+        <propertyfile file="build.properties">
+            <entry key="project.version.date" type="date" value="now" pattern="YYYY-MM-dd.HH-mm-ss"/>
+        </propertyfile>
+    </target>
+
+    <available file=".git" type="dir" property="git.present"/>
+    <target name="git-revision" description="Store git revision in ${repository.version}" if="git.present">
+        <exec executable="git" outputproperty="git.revision" failifexecutionfails="false" errorproperty="">
+            <arg value="describe"/>
+            <arg value="--tags"/>
+            <arg value="--always"/>
+            <arg value="HEAD"/>
+        </exec>
+        <condition property="repository.version" value="${git.revision}" else="unknown">
+            <and>
+                <isset property="git.revision"/>
+                <length string="${git.revision}" trim="yes" length="0" when="greater"/>
+            </and>
+        </condition>
+        <propertyfile file="build.properties">
+            <entry key="repository.version" type="string" value="${repository.version}"/>
+        </propertyfile>
+    </target>
+
+    <target name="update-project-version"  depends="git-revision, update-build-date">
+        <property file="build.properties"/>
+        <property name="project.version" 
+            value="${project.version.major}.${project.version.minor}.${project.version.patch}"/>        
+        <echo message="Version: ${project.version}"/>
+        <echo message="Date: ${project.version.date}"/>
+        <echo message="Repository: ${repository.version}"/>
+        </target>
+
+    <target name="show-version" description="Echo the version number">
+        <property file="build.properties"/>
+        <property name="project.version" 
+            value="${project.version.major}.${project.version.minor}.${project.version.patch}"/>        
+        <echo message="Version: ${project.version}"/>
+        <echo message="Date: ${project.version.date}"/>
+        <echo message="Repository: ${repository.version}"/>
+    </target>
+
+</project>

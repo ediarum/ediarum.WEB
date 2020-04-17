@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://expath.org/ns/pkg" name="http://www.bbaw.de/telota/software/ediarum/web/lib" abbrev="edweb" version="1.0.0" spec="1.0">
+    <title>ediarum.web</title>
+    <xquery>
+      <namespace>http://www.bbaw.de/telota/software/ediarum/web/lib</namespace>
+      <file>edweb.xql</file>
+    </xquery>
+    <xquery>
+      <namespace>http://www.bbaw.de/telota/software/ediarum/web/api</namespace>
+      <file>edweb-api.xql</file>
+    </xquery>
+    <xquery>
+      <namespace>http://www.bbaw.de/telota/software/ediarum/web/controller</namespace>
+      <file>edweb-controller.xql</file>
+    </xquery>
+</package>

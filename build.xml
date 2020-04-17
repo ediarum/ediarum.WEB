@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project default="xar" name="edweb" xmlns:xdb="http://exist-db.org/ant" >
+    <property name="build.dir" value="build"/>
+    <property file="project.properties"/>
+    <import file="common-build-targets.xml"/>
+    <import file="build-xar.xml"/>
+
+    <path id="classpath.core">
+        <fileset dir="${exist.dir}/lib/core">
+            <include name="*.jar"/>
+        </fileset>
+        <pathelement path="${exist.dir}/exist.jar"/>
+        <pathelement path="${exist.dir}/exist-optional.jar"/>
+    </path>
+    <typedef resource="org/exist/ant/antlib.xml" uri="http://exist-db.org/ant">
+        <classpath refid="classpath.core"/>
+    </typedef>
+
+    <target name="test-xquery" description="Test the XQuery in temp/test.xql">
+        <echo message="Executing script ..."/>
+        <xdb:xquery 
+            uri="${server.local.uri}/db" 
+            ssl="false" 
+            user="${server.local.user}" 
+            password="${server.local.password}" 
+            queryfile="temp/test.xql"
+            outputproperty="result"
+            />
+        <echo>
+            Result:
+            ${result}
+        </echo>
+
+    </target>
+
+</project>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project xmlns:xdb="http://exist-db.org/ant" name="build-xar">
+    <property name="build.dir" value="build" />
+    <property file="project.properties"/>
+    <import file="common-build-targets.xml"/>
+
+    <!-- Targets for project web app -->
+
+    <target name="use-ant-filters" depends="update-project-version">
+        <delete>
+            <fileset dir="${project.app.folder}">
+                <include name="expath-pkg.xml"/>
+            </fileset>
+        </delete>
+        <copy todir=".">
+            <fileset dir="${project.app.folder}">
+                <include name="expath-pkg.xml.ant"/>
+            </fileset>
+            <globmapper from="*.ant" to="*"/>
+            <filterset>
+                <filter token="VERSION" value="${project.version}"/>
+            </filterset>
+        </copy>
+    </target>
+
+    <target name="build-xar" depends="use-ant-filters, update-project-version" description="Build a xar-package of WEB">
+        <delete dir="${build.dir}"/>
+        <mkdir dir="${build.dir}"/>
+        <zip basedir="${project.app.folder}" destfile="${build.dir}/${project.app.name}_v${project.version}.${project.version.date}.xar"
+             excludes="${build.dir}/*, temp/**, project.properties, build.properties"/>
+    </target>
+
+    <path id="classpath.core">
+        <fileset dir="${exist.dir}/lib/core">
+            <include name="*.jar"/>
+        </fileset>
+        <pathelement path="${exist.dir}/exist.jar"/>
+        <pathelement path="${exist.dir}/exist-optional.jar"/>
+    </path>
+    <typedef resource="org/exist/ant/antlib.xml" uri="http://exist-db.org/ant">
+        <classpath refid="classpath.core"/>
+    </typedef>
+
+    <target name="deploy-app">
+        <echo message="Uploading package..." />
+        <xdb:store uri="${server.uri}/db/system/repo/" ssl="${server.ssl}" 
+            user="${server.user}" password="${server.password}" permissions="rwxrwx---">
+            <fileset dir="${build.dir}">
+                <include name="${project.app.name}_${project.version}.${project.version.date}.xar" />
+            </fileset>
+        </xdb:store>
+        <echo message="Installing package..." />
+        <xdb:xquery uri="${server.uri}/db" ssl="${server.ssl}" 
+            user="${server.user}" password="${server.password}" 
+            query="repo:install-and-deploy-from-db('/db/system/repo/${project.app.name}_v${project.version}.${project.version.date}.xar')" 
+            outputproperty="deploy.output" />
+        <echo message="${deploy.output}" />
+    </target>
+
+    <target name="build-and-deploy-to-edit" description="Build xar package, upload and install to EDIT">
+        <echo message="Building xar package..." />
+        <antcall target="build-xar" />
+        <antcall target="deploy-app">
+            <param name="server.uri" value="${server.edit.uri}" />
+            <param name="server.user" value="${server.edit.user}" />
+            <param name="server.password" value="${server.edit.password}" />
+            <param name="server.ssl" value="true" />
+        </antcall>
+    </target>
+
+    <target name="build-and-deploy-to-dev" description="Build xar package, upload and install to DEV">
+        <echo message="Building xar package..." />
+        <antcall target="build-xar" />
+        <antcall target="deploy-app">
+            <param name="server.uri" value="${server.dev.uri}" />
+            <param name="server.user" value="${server.dev.user}" />
+            <param name="server.password" value="${server.dev.password}" />
+            <param name="server.ssl" value="true" />
+        </antcall>
+    </target>
+
+    <target name="build-and-deploy-to-local" description="Build xar package, upload and install to LOCAL">
+        <echo message="Building xar package..." />
+        <antcall target="xar" />
+        <antcall target="deploy-app">
+            <param name="server.uri" value="${server.local.uri}" />
+            <param name="server.user" value="${server.local.user}" />
+            <param name="server.password" value="${server.local.password}" />
+            <param name="server.ssl" value="false" />
+        </antcall>
+    </target>
+
+</project>
