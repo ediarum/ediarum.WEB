@@ -438,11 +438,42 @@ declare function edwebapi:get-object-list(
             ))
     let $objects := 
         for $o at $pos in $objects
+        let $id := $o?id
         let $filter-values :=
             for $f in $filters
             let $filter-id := $f/@xml:id/string()
             let $filter-objects :=
-                if (exists($f/appconf:root[@type = 'label'])) 
+                if ($f/@type = "relation") 
+                then
+                    let $rel-type-name := $f/appconf:relation/@id/string()
+                    let $rel-perspective := $f/appconf:relation/@as/string()
+                    let $rel-target :=
+                        switch($rel-perspective)
+                        case "subject" return "object"
+                        case "object" return "subject"
+                        default return
+                            error(xs:QName("edwebapi:get-object-list-002"),
+                                "Invalid configuration parameter value, only 'subject' or 'object' allowed."
+                            )
+                    let $relations := 
+                        edwebapi:load-map-from-cache(
+                            "edwebapi:get-relation-list",
+                            [$app-target, $rel-type-name],
+                            collection($data-collection)/*,
+                            false()
+                        )
+                    let $items := $relations?list?*[?($rel-perspective) = $id]
+                    for $i in $items return
+                        switch($f/appconf:label/string())
+                        case "predicate" return $i?predicate
+                        case "id" return $i?($rel-target)
+                        case "id+predicate" 
+                        return $i?($rel-target)||"+"||$i?predicate
+                        default return
+                            error(xs:QName("edwebapi:get-object-list-003"),
+                                "Invalid configuration parameter value, only 'id', 'predicate', and 'id+predicate' allowed."
+                            )
+                else if (exists($f/appconf:root[@type = 'label'])) 
                 then $o?labels?*
                 else util:eval-inline($objects-xml[$pos], ".//"||$f/appconf:xpath/string())
             let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
@@ -483,6 +514,75 @@ declare function edwebapi:get-object-list(
             map:entry("date-time", current-dateTime()),
             map:entry("type", "objects"),
             map:entry("filter", $filter),
+            map:entry("list", map:merge(( $objects )) )
+        ))
+};
+
+(:~
+ : This function retrieves all requested objects without analyzing the filter values. This avoids
+ : an endless loading loop because of relation filters and relations itself.
+ :
+ :)
+declare function edwebapi:get-object-list-without-filter(
+    $app-target as xs:string,
+    $object-type as xs:string
+) as map(*) 
+{
+    let $config := edwebapi:get-config($app-target)
+    let $object-type := string($object-type)
+    let $object-def := $config//appconf:object[@xml:id=$object-type]
+    let $collection := $object-def/appconf:collection
+    let $namespaces :=
+        for $ns in $object-def/appconf:item/appconf:namespace
+        let $prefix := $ns/@id/string()
+        let $namespace-uri := $ns/string()
+        return util:declare-namespace($prefix, $namespace-uri)
+    let $root := $object-def/appconf:item/appconf:root
+    let $label-function := $object-def/appconf:item/appconf:label[@type=('xquery','xpath')]
+    let $object-id := $object-def/appconf:item/appconf:id/string()
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
+    let $objects := 
+        for $object in $objects-xml
+        let $id := string(util:eval-inline($object,$object-id))
+        let $error := 
+            if (count($id) != 1)
+            then (error(xs:QName("edwebapi:get-object-list-without-filter-001"), "There should be exact one ID for each object."
+                ||" Count: "||count($id)||", ID function: "||$label-function||", Object: "
+                ||serialize($object) )) 
+            else ()
+        let $labels := 
+            if ($label-function/@type = 'xpath') 
+            then array { util:eval-inline($object, $label-function) }
+            else if ($label-function/@type = 'xquery') 
+            then array { util:eval($label-function)($object) }
+            else ()
+        return
+            map:merge ((
+                map:entry("id", $id),
+                map:entry("absolute-resource-id", util:absolute-resource-id($object)),
+                map:entry("object-type", $object-type),
+                map:entry(
+                    "labels", $labels
+                ),
+                map:entry(
+                    "label", $labels?1
+                )
+            ))
+    let $objects := 
+        for $o in $objects
+        return 
+            map:entry(
+                $o?id,
+                map:merge(( 
+                    $o
+                ))
+            )
+    return
+        map:merge((
+            map:entry("date-time", current-dateTime()),
+            map:entry("type", "objects"),
+            map:entry("filter", map:merge(( )) ),
             map:entry("list", map:merge(( $objects )) )
         ))
 };
@@ -627,7 +727,7 @@ declare function edwebapi:get-relation-list(
     let $objects :=
         let $map := 
             edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list", 
+                "edwebapi:get-object-list-without-filter", 
                 [$app-target, $object-type], 
                 (), 
                 false()
@@ -637,7 +737,7 @@ declare function edwebapi:get-relation-list(
     let $subjects := 
         let $map := 
             edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list", 
+                "edwebapi:get-object-list-without-filter", 
                 [$app-target, $subject-type], 
                 (), 
                 false()

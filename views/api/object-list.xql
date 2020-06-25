@@ -42,7 +42,17 @@ let $is-object := exists($config//appconf:object[@xml:id=$object-type])
 let $is-relation := exists($config//appconf:relation[@xml:id=$object-type])
 
 let $result := 
-    if ($is-object) 
+    if ($is-object and $show eq 'compact')
+    then 
+        edwebapi:load-map-from-cache(
+            "edwebapi:get-object-list-without-filter", 
+            [$app-target, $object-type], 
+            if ($cache = "yes")
+            then ()
+            else collection(edwebapi:data-collection($app-target))/*, 
+            $cache = "no"
+        )
+    else if ($is-object) 
     then
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list", 
@@ -64,7 +74,7 @@ let $result :=
         )
     else $object-type||" isn't defined for '"||$app-target||"'."
 return
-    if ($is-object and ($show eq 'list' or $show eq 'all')) 
+    if ($is-object and ($show eq 'list' or $show eq 'all' or $show eq 'compact')) 
     then
         let $filter-params := 
             if ($show eq 'list') 
