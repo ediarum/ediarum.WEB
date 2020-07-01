@@ -1,6 +1,6 @@
 # ediarum.WEB
 
-© 2011-2018 by Berlin-Brandenburg Academey of Sciences and Humanities
+© 2020 by Berlin-Brandenburg Academey of Sciences and Humanities
 
 Developed by TELOTA, a DH working group of the Berlin-Brandenburg Academey of Sciences and Humanities  
 http://www.bbaw.de/telota  
@@ -12,6 +12,8 @@ Lead Developer:
 
 * Martin Fechner
 
+Thanks to Theodor Costea for support and contribution
+
 ## What does it do?
 
 ediarum.WEB is an library for eXist-db (http://www.exist-db.org). It is tested with eXist-db versions 3.2.0, 4.6.1, and 5.2.0. 
@@ -19,7 +21,13 @@ With the help of ediarum.WEB, developers can build an entire website or just a b
 
 ## Documentation
 
-tba
+An introduction how to use ediarum.WEB is available at https://www.ediarum.org/docs/ediarum-web-step-for-step.
+
+## Development
+
+To build a new xar package use Apache ANT (https://ant.apache.org/):
+
+`ant build-xar`
 
 ## License
 
@@ -35,7 +43,7 @@ along with ediarum.WEB.  If not, see <http://www.gnu.org/licenses/>.
 
 ## Third party licences
 
-ediarum.BASE.edit includes software from third parties, which are licensed seperately. 
+ediarum.WEB includes software from third parties, which are licensed seperately. 
 
 ### Bootstrap v4.1.3 (https://getbootstrap.com/)
 
