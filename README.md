@@ -12,7 +12,9 @@ Lead Developer:
 
 * Martin Fechner
 
-Thanks to Theodor Costea for support and contribution
+Thanks to: 
+
+* Theodor Costea for development support
 
 ## What does it do?
 
