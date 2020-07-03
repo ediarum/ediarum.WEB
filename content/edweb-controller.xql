@@ -59,7 +59,7 @@ declare function local:api-routing(
 {
     let $f := function-lookup(xs:QName($function), 3)
     return (
-        if (request:get-parameter("id", request:get-attribute("id")) eq 'all') 
+        if (request:get-parameter("id", request:get-attribute("id"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)
         else $f("/api", "api/show-config.xql", $params),
 
@@ -647,6 +647,37 @@ declare function edwebcontroller:redirect(
         <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
             <redirect url="{$redirect}"/>
         </dispatch>
+    )
+    else ()
+};
+
+(:~ 
+ : Searches an object with an ID property and redirects to it.
+ :
+ : @param $starts-with if the request starts with this it is redirected. Everything after will be mapped to the id property.
+ : @param $id-type the name of the id property.
+ :)
+declare function edwebcontroller:redirect-to-id(
+    $starts-with as xs:string,
+    $id-type as xs:string
+)
+{
+  if (edwebcontroller:is-pass-through() and starts-with(edwebcontroller:get-exist-path(), $starts-with)) 
+    then (
+       local:set-pass-through-false()
+        ,
+        let $base-url := substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                ||edwebcontroller:get-exist-controller()
+        let $link-list := edwebcontroller:api-get("/api?id="||$id-type)
+        let $id := substring-after(edwebcontroller:get-exist-path(), $starts-with)
+        let $object := $link-list[?filter?($id-type) = $id][1]
+        let $object-type := $object?object-type
+        let $object-id := $object?id
+        let $redirect := $base-url||"/"||$object-type||"/"||$object-id
+        return
+            <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
+                <redirect url="{$redirect}"/>
+            </dispatch>
     )
     else ()
 };

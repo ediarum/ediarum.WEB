@@ -11,4 +11,11 @@ declare option output:media-type "application/json";
 let $app-target := request:get-parameter("app-target", request:get-attribute("app-target"))
 let $cache := request:get-parameter("cache", request:get-attribute("cache"))
 
-return edwebapi:get-all($app-target, $cache)
+let $id := request:get-parameter("id", request:get-attribute("id"))
+let $all-list := edwebapi:get-all($app-target, $cache)
+return 
+    if ($id = "all")
+    then
+        $all-list
+    else
+        map:remove($all-list, "date-time")?*[?filter?($id)||"" != ""]
