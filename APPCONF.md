@@ -9,6 +9,7 @@
       - [Base information](#base-information)
       - [XPath Property](#xpath-property)
       - [Label property](#label-property)
+      - [ID property](#id-property)
       - [Relation property](#relation-property)
   - [4. Definition of a relation](#4-definition-of-a-relation)
     - [4.1 Base information](#41-base-information)
@@ -169,6 +170,23 @@ Example:
     <root type="label"/>
     <label-function type="xquery">
         function($string) {substring(replace(normalize-space($string), '^\(', ''),1,1)}
+    </label-function>
+</filter>
+```
+
+#### ID property
+
+- `type` must be equal to `id`.
+
+Example:
+
+```xml
+<filter xml:id="gnd">
+    <name>GND</name>
+    <type>id</type>
+    <xpath>.//tei:persName/@key/tokenize(.,' ')[contains(.,'gnd:')]</xpath>
+    <label-function type="xquery">
+        function($string) { substring-after($string, 'gnd:')||"" }
     </label-function>
 </filter>
 ```
