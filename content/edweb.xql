@@ -636,7 +636,15 @@ declare %templates:wrap function edweb:load-current-object(
 ) as map(*) 
 {
     let $object-type := request:get-attribute("object-type")
-    let $object-id := request:get-attribute("id")
+    let $object-id :=
+        if (request:get-attribute("find")||"" != "")
+        then
+            let $id-type := request:get-attribute("find")
+            let $find-id := request:get-attribute("id")
+            let $object := edwebcontroller:api-get("/api/"||$object-type||"?show=list&amp;"||$id-type||"="||$find-id)
+            return  $object?id
+        else
+            request:get-attribute("id")
     let $map := edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id)
     let $current-doc := 
         map:entry( 

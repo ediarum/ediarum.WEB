@@ -46,6 +46,8 @@ declare function edwebapi:filter-list(
             then function($list as map(*)*) { $list}
             else
                 switch($filter?type)
+                case "id" 
+                return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
                 case "single" 
                 return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
                 case "union" 
