@@ -1,5 +1,7 @@
 # ediarum.WEB
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3958831.svg)](https://doi.org/10.5281/zenodo.3958831)
+
 © 2020 by Berlin-Brandenburg Academey of Sciences and Humanities
 
 Developed by TELOTA, a DH working group of the Berlin-Brandenburg Academey of Sciences and Humanities  
