@@ -29,6 +29,8 @@ An introduction how to use ediarum.WEB is available at https://www.ediarum.org/d
 
 For the structure of the `appconf.xml` see [APPCONF.md](APPCONF.md).
 
+For the definition of the API calls see [API.md](API.md).
+
 ## Development
 
 To build a new xar package use Apache ANT (https://ant.apache.org/):

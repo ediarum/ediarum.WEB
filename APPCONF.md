@@ -11,6 +11,8 @@
       - [Label property](#label-property)
       - [ID property](#id-property)
       - [Relation property](#relation-property)
+    - [3.3 Views / XSLTs](#33-views--xslts)
+      - [Base information](#base-information-1)
   - [4. Definition of a relation](#4-definition-of-a-relation)
     - [4.1 Base information](#41-base-information)
     - [4.2 Subject and object condition](#42-subject-and-object-condition)
@@ -211,6 +213,55 @@ Example:
     </label-function>
 </filter>
 ```
+
+### 3.3 Views / XSLTs
+
+With a view it is possible to generate different outputs for an object. 
+For this the XML-object is transformed with a project specific XSLT. 
+The views are defined within an object definition in a `<views>` tag.
+
+Example, where to define a view:
+
+```xml
+<object>
+    ...
+    <views>
+        <view>...</view>
+        <view>...</view>
+        ...
+    </views>
+</object>
+```
+
+#### Base information
+
+The basic information for a view defines where to find the XSLT for the transformation.
+
+- `view/@id` ID of the view used by api calls.
+- `xslt` relative path (from app root) to the XSLT. 
+- `label` label of the view, can be shown in the frontend.
+- `label/@params` possible XSLT parameters are specified here. Multiple parameters must be separated with a whitespace.
+
+```xml
+<view id="default">
+    <label>Standard</label>
+    <xslt params="highlight status">resources/xslt/text_detail.xsl</xslt>
+</view>
+```
+
+*Related API call*
+
+```
+/api/<object-type>/<object-id>
+```
+
+*Related functions*
+
+- [edweb:add-view-list ($node, $model)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L443-L458)
+- [edweb:add-view-list ($node, $model, $views, $selected)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L460-L496)
+- [edweb:add-view-nav ($node, $model)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L498-L520)
+- [edweb:add-view-nav ($node, $model, $views, $selected)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L522-L548)
+
 
 ## 4. Definition of a relation
 

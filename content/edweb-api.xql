@@ -338,13 +338,16 @@ declare function edwebapi:get-object(
         let $id := $view/@id/string()
         let $xslt := $view/appconf:xslt/string()
         let $label := $view/appconf:label/string()
+        let $params := $view/appconf:xslt/@params/string()||""
+        order by $id
         return
             map:entry (
                 $id,
                 map:merge((
                     map:entry("id", $id),
                     map:entry("xslt", $xslt),
-                    map:entry("label", $label)
+                    map:entry("label", $label),
+                    map:entry("params", $params)
                 )) 
             )
     return 
@@ -361,6 +364,55 @@ declare function edwebapi:get-object(
             map:entry("views", map:merge(( $views )) )
         ))
 };
+
+(:~  
+ : Performs an XSLT transformation of the object.
+ :
+ : @param $app-target
+ : @param $object-type 
+ : @param $object-id 
+ : @param $view the id of the view
+ : @param $params a map with parameters which is transferred to the xslt
+ : @return the transformed object.
+ :)
+declare function edwebapi:get-object-as(
+    $app-target as xs:string,
+    $object-type as xs:string, 
+    $object-id as xs:string,
+    $view as xs:string,
+    $params as map(*)
+) as node()* 
+{
+    let $object := edwebapi:get-object($app-target, $object-type, $object-id)
+    let $xsl-path := $object?views?($view)?xslt
+    let $path := $app-target||"/"||$xsl-path
+    let $stylesheet := 
+        if (doc($path)) 
+        then doc($path) 
+        else error(xs:QName("edwebapi:get-object-as-001"), $path||" not found.")
+    let $xml := $object?xml
+    let $parameters :=
+        <parameters>
+            <param name="exist:stop-on-error" value="yes"/> 
+            { 
+                for $param in map:keys($params)
+                return element param {
+                    attribute name { $param },
+                    attribute value { $params?($param) }
+            }
+        } </parameters>
+    let $result :=
+        try {
+            transform:transform($xml, $stylesheet, $parameters)
+        } 
+        catch * {
+            error(xs:QName("edwebapi:get-object-as-002"), "Can't transform "
+                ||util:collection-name($xml)||"/"||util:document-name($xml)||" with "
+                ||$path)
+        }
+    return $result
+};
+
 
 (:~
  : The function retrieves objects from the data.

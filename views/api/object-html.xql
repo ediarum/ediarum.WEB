@@ -4,7 +4,10 @@ import module namespace edwebapi="http://www.bbaw.de/telota/software/ediarum/web
 
 declare namespace output = "http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace tei = "http://www.tei-c.org/ns/1.0";
-            
+
+declare option output:method "html5";
+declare option output:media-type "text/html";
+
 (:~
  : Reads the parameters of the request to a map.
  :
