@@ -72,6 +72,9 @@ declare function local:api-routing(
         (: Get the object as HTML :)
         else if (request:get-parameter("output", request:get-attribute("output")) eq 'html') 
         then $f("/api/<object-type>/<object-id>", "api/object-html.xql", $params)
+        (: Get the object as Text :)
+        else if (request:get-parameter("output", request:get-attribute("output")) eq 'text') 
+        then $f("/api/<object-type>/<object-id>", "api/object-text.xql", $params)
         (: Get object information as JSON :)
         else $f("/api/<object-type>/<object-id>", "api/object-json.xql", $params),
 
