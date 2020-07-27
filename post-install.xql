@@ -13,6 +13,8 @@ declare variable $target external;
 
 sm:chmod(xs:anyURI($target||"/views/api/object-list.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/object-xml.xql"), "rwxr-sr-x"),
+sm:chmod(xs:anyURI($target||"/views/api/object-html.xql"), "rwxr-sr-x"),
+sm:chmod(xs:anyURI($target||"/views/api/object-text.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/object-json.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/object-part.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/all-list.xql"), "rwxr-sr-x"),
