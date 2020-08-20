@@ -19,6 +19,7 @@ declare namespace http="http://expath.org/ns/http-client";
 
 declare variable $edwebcontroller:controller := "/ediarum.web";
 declare variable $edwebcontroller:edweb-path := "/db/apps/ediarum.web";
+declare variable $edwebcontroller:allowed-pattern-chars := "[.@:_\-\p{L}0-9]+";
 
 declare function functx:escape-for-regex($arg as xs:string?) as xs:string {replace($arg,
     '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1')};
@@ -125,7 +126,7 @@ declare function local:api-get-from-pattern(
     $api-path as xs:string
 ) 
 {
-    let $variable-pattern := "[.@:_\-A-Za-z0-9]+"
+    let $variable-pattern := $edwebcontroller:allowed-pattern-chars
     let $path := 
         if (contains($api-path, "?")) 
         then substring-before($api-path, "?") 
@@ -289,7 +290,11 @@ declare function edwebcontroller:generate-path(
     $as-view as xs:boolean
 ) 
 {
-    let $allowed-pattern-chars := "[.@:_\-A-Za-z0-9]+"
+    let $allowed-pattern-chars := $edwebcontroller:allowed-pattern-chars
+    let $exist-path := xmldb:decode($exist-path)
+        (: if ($exist-path||"" != "")
+        then error(xs:QName("edwebcontroller"), $exist-path)
+        else $exist-path :)
     return
     if (
         $is-pass-through 
