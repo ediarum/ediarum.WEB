@@ -40,6 +40,8 @@ let $range := number(request:get-parameter("range", request:get-attribute("range
 let $page := number(request:get-parameter("page", request:get-attribute("page")))
 let $from := number(request:get-parameter("from", request:get-attribute("from")))
 
+let $id := request:get-parameter("id", request:get-attribute("id"))
+
 let $show := request:get-parameter("show", request:get-attribute("show"))
 
 let $config := edwebapi:get-config($app-target)

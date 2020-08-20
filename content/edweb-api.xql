@@ -458,7 +458,18 @@ declare function edwebapi:get-object-list(
     let $root := $object-def/appconf:item/appconf:root
     let $label-function := $object-def/appconf:item/appconf:label[@type=('xquery','xpath')]
     let $object-id := $object-def/appconf:item/appconf:id/string()
-    let $filters := $object-def/appconf:filters/appconf:filter
+    let $filters := 
+        (
+            $object-def/appconf:filters/appconf:filter,
+            <appconf:filter xml:id="id">
+                <appconf:name>ID</appconf:name>
+                <appconf:type>id</appconf:type>
+                <appconf:xpath>{ $object-id }</appconf:xpath>
+                <appconf:label-function type="xquery">
+                    {"function($string) { $string }"}
+                </appconf:label-function>
+            </appconf:filter>
+        )
     let $filter :=
         map:merge((
             for $f at $pos in $filters
@@ -550,7 +561,7 @@ declare function edwebapi:get-object-list(
                             )
                 else if (exists($f/appconf:root[@type = 'label'])) 
                 then $o?labels?*
-                else util:eval-inline($objects-xml[$pos], ".//"||$f/appconf:xpath/string())
+                else util:eval-inline($objects-xml[$pos], $f/appconf:xpath/string())
             let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
             return 
                 map:entry(
