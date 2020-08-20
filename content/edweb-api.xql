@@ -103,7 +103,7 @@ declare function edwebapi:get-all(
                 [$app-target, $object-type], 
                 if ($cache = "yes")
                 then ()
-                else collection(edwebapi:data-collection($app-target))/*, 
+                else edwebapi:data-collection($app-target), 
                 $cache = "no"
             )
         return $map?list
@@ -208,10 +208,23 @@ declare function local:list-part-ids(
 declare function edwebapi:load-map-from-cache(
     $function-name as xs:string, 
     $params as array(*), 
-    $node-set as node()*, 
+    $data-collection as xs:string?, 
     $reload as xs:boolean?
 ) as map(*) 
 {
+    let $node-set as node()* := 
+        if ($data-collection||"" = "") 
+        then 
+            ()
+        else if (xmldb:collection-available($data-collection))
+        then
+            collection($data-collection)/*
+        else if (doc-available($data-collection))
+        then
+            doc($data-collection)/*
+        else
+            error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "
+            ||$data-collection)
     let $arity := array:size($params)
     let $function := function-lookup(xs:QName($function-name), $arity)
     let $cache-collection := $edwebapi:cache-collection
@@ -521,7 +534,7 @@ declare function edwebapi:get-object-list(
                         edwebapi:load-map-from-cache(
                             "edwebapi:get-relation-list",
                             [$app-target, $rel-type-name],
-                            collection($data-collection)/*,
+                            $data-collection,
                             false()
                         )
                     let $items := $relations?list?*[?($rel-perspective) = $id]
@@ -772,7 +785,15 @@ declare function edwebapi:get-objects(
 ) as node()* 
 {
     try { 
-        util:eval("collection($data-collection||$collection)//"||$root)
+        if (xmldb:collection-available($data-collection||$collection))
+        then
+            util:eval("collection($data-collection||$collection)//"||$root)
+        else if (doc-available($data-collection||$collection))
+        then
+            util:eval("doc($data-collection||$collection)//"||$root)
+        else
+            error(xs:QName("edwebapi:get-objects-002"), "Can't find collection or resource. data-collection: "
+            ||$data-collection||", collection/resource: "||$collection)
     } 
     catch * { error(xs:QName("edwebapi:get-objects-001"), "Can't load objects. data-collection: "
         ||$data-collection||", collection: "||$collection||", root: "||$root)
@@ -821,7 +842,7 @@ declare function edwebapi:get-search-results(
                 [$app-target, $object-type], 
                 if ($cache = "yes")
                 then ()
-                else collection(edwebapi:data-collection($app-target))/*, 
+                else edwebapi:data-collection($app-target), 
                 $cache = "no"
             )
         return 

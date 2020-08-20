@@ -54,7 +54,7 @@ let $result :=
             [$app-target, $object-type], 
             if ($cache = "yes")
             then ()
-            else collection(edwebapi:data-collection($app-target))/*, 
+            else edwebapi:data-collection($app-target), 
             $cache = "no"
         )
     else if ($is-object) 
@@ -64,7 +64,7 @@ let $result :=
             [$app-target, $object-type], 
             if ($cache = "yes")
             then ()
-            else collection(edwebapi:data-collection($app-target))/*, 
+            else edwebapi:data-collection($app-target), 
             $cache = "no"
         )
     else if ($is-relation) 
@@ -74,7 +74,7 @@ let $result :=
             [$app-target, $object-type], 
             if ($cache = "yes")
             then ()
-            else collection(edwebapi:data-collection($app-target))/*, 
+            else edwebapi:data-collection($app-target), 
             $cache = "no"
         )
     else $object-type||" isn't defined for '"||$app-target||"'."

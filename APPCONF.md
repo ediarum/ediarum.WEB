@@ -87,7 +87,7 @@ The basic information for an object type defines where to find the objects in th
 
 - `object/@xml:id` ID of the object type.
 - `name` name of the object type. Can be used in the frontend.
-- `collection` a relative path to the collection where to search for objects.
+- `collection` a relative path to the collection or to a resource where to search for objects.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
 - `item/root` XPath expression of the root element of every object.
 - `item/id` XPath expression where to find the ID of an object.
