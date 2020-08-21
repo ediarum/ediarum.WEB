@@ -18,4 +18,5 @@ sm:chmod(xs:anyURI($target||"/views/api/object-text.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/object-json.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/object-part.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/all-list.xql"), "rwxr-sr-x"),
+sm:chmod(xs:anyURI($target||"/views/api/search.xql"), "rwxr-sr-x"),
 sm:chmod(xs:anyURI($target||"/views/api/show-config.xql"), "rwxr-sr-x")

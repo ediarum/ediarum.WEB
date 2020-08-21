@@ -6,15 +6,16 @@ xquery version "3.1";
 module namespace edwebapi="http://www.bbaw.de/telota/software/ediarum/web/api";
 
 import module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
+import module namespace kwic="http://exist-db.org/xquery/kwic";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
-declare namespace repo="http://exist-db.org/xquery/repo";
 declare namespace expath="http://expath.org/ns/pkg";
-declare namespace tei="http://www.tei-c.org/ns/1.0";
 declare namespace functx = "http://www.functx.com";
-declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
-declare namespace test="http://exist-db.org/xquery/xqsuite";
 declare namespace http="http://expath.org/ns/http-client";
+declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
+declare namespace tei="http://www.tei-c.org/ns/1.0";
+declare namespace test="http://exist-db.org/xquery/xqsuite";
+declare namespace repo="http://exist-db.org/xquery/repo";
 
 declare variable $edwebapi:controller := "/ediarum.web";
 declare variable $edwebapi:cache-collection := "/db/apps/ediarum.web/cache";
@@ -22,11 +23,16 @@ declare variable $edwebapi:projects-collection := "/db/projects";
 (: See also $edweb:param-separator. :)
 declare variable $edwebapi:param-separator := ";";
 
+declare function functx:change-element-ns-deep($element as element(), $newns as xs:string) as element() {let $newName := QName($newns, name($element)) return (element {$newName} {$element/@*, for $child in $element/node() return if ($child instance of element()) then functx:change-element-ns-deep($child, $newns) else $child})};
+declare function functx:escape-for-regex($arg as xs:string?) as xs:string {replace($arg, '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1')};
 declare function functx:get-matches-and-non-matches($string as xs:string?, $regex as xs:string) as element()* {let $iomf := functx:index-of-match-first($string, $regex)return if (empty($iomf))then <non-match>{$string}</non-match>else if ($iomf > 1)then (<non-match>{substring($string,1,$iomf - 1)}</non-match>,functx:get-matches-and-non-matches(substring($string,$iomf),$regex))else let $length :=string-length($string)-string-length(functx:replace-first($string, $regex,''))return (<match>{substring($string,1,$length)}</match>,if (string-length($string) > $length)then functx:get-matches-and-non-matches(substring($string,$length + 1),$regex)else ())};
 declare function functx:index-of-match-first($arg as xs:string?, $pattern as xs:string) as xs:integer? {if (matches($arg,$pattern))then string-length(tokenize($arg, $pattern)[1]) + 1 else ()};
+declare function functx:is-node-in-sequence-deep-equal($node as node()?, $seq as node()*) as xs:boolean {some $nodeInSeq in $seq satisfies deep-equal($nodeInSeq,$node)};
 declare function functx:pad-integer-to-length($integerToPad as xs:anyAtomicType?, $length as xs:integer) as xs:string {if ($length < string-length(string($integerToPad)))then error(xs:QName('functx:Integer_Longer_Than_Length'))else concat(functx:repeat-string('0',$length - string-length(string($integerToPad))),string($integerToPad))};
 declare function functx:replace-first($arg as xs:string?, $pattern as xs:string, $replacement as xs:string) as xs:string {replace($arg, concat('(^.*?)', $pattern),concat('$1',$replacement))};
 declare function functx:repeat-string($stringToRepeat as xs:string?, $count as xs:integer) as xs:string {string-join((for $i in 1 to $count return $stringToRepeat), '')};
+declare function functx:substring-after-last($arg as xs:string?, $delim as xs:string) as xs:string {replace ($arg,concat('^.*',functx:escape-for-regex($delim)),'')};
+declare function functx:substring-before-last($arg as xs:string?, $delim as xs:string) as xs:string {if (matches($arg, functx:escape-for-regex($delim))) then replace($arg, concat('^(.*)', functx:escape-for-regex($delim),'.*'), '$1') else ''};
 
 (:~
  : 
@@ -478,6 +484,7 @@ declare function edwebapi:get-object-list(
             else if ($label-function/@type = 'xquery') 
             then array { util:eval($label-function)($object) }
             else ()
+        let $search-score as xs:float := xs:float(0.0)
         return
             map:merge ((
                 map:entry("id", $id),
@@ -488,7 +495,8 @@ declare function edwebapi:get-object-list(
                 ),
                 map:entry(
                     "label", $labels?1
-                )
+                ),
+                map:entry("score", $search-score)
             ))
     let $objects := 
         for $o at $pos in $objects
@@ -570,6 +578,114 @@ declare function edwebapi:get-object-list(
             map:entry("filter", $filter),
             map:entry("list", map:merge(( $objects )) )
         ))
+};
+
+declare function edwebapi:get-object-list-with-search(
+    $object-list as map(*),
+    $app-target as xs:string,
+    $object-type as xs:string,
+    $search-xpath as xs:string?,
+    $kwic-width as xs:string?,
+    $search-query as xs:string?,
+    $search-type as xs:string?,
+    $slop as xs:string?
+) as map(*)
+{
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $config := edwebapi:get-config($app-target)
+    let $object-type := string($object-type)
+    let $object-def := $config//appconf:object[@xml:id=$object-type]
+    let $collection := $object-def/appconf:collection
+    let $namespaces :=
+        for $ns in $object-def/appconf:item/appconf:namespace
+        let $prefix := $ns/@id/string()
+        let $namespace-uri := $ns/string()
+        return util:declare-namespace($prefix, $namespace-uri)
+    let $root := $object-def/appconf:item/appconf:root
+    let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
+    let $kwic-width := 
+        if ($kwic-width||"" = "")
+        then "30"
+        else $kwic-width
+    let $search-xpath :=
+        if ($search-xpath eq ".")
+        then "("||string-join($object-def/appconf:lucene/appconf:text/@qname/string(), "|")||")"
+        else $search-xpath
+    let $query :=
+        switch ($search-type)
+        case "regex" return 
+            <bool>
+            {
+                for $word in tokenize($search-query, ' ' )
+                return
+                    <regex occur="must">{$word}</regex>
+            }
+            </bool>
+        case "phrase" return <phrase slop="{$slop}">{$search-query}</phrase>
+        case "lucene" return $search-query
+        default return 
+            <bool>
+            {
+                for $word in tokenize($search-query, ' ' )
+                return
+                    <term occur="must">{$word}</term>
+            }
+            </bool>
+    let $query := 
+        if ($search-type = "lucene")
+        then $query
+        else
+            <query>{$query}</query>
+    let $objects-xml := 
+        if ($search-xpath||$search-query||"" != "")
+        then
+            let $init-indices := local:init-search-indices($app-target)
+            return
+                util:eval("$objects-xml[ft:query(.//"||$search-xpath||", $query)]")
+        else $objects-xml
+    let $object-id := $object-def/appconf:item/appconf:id/string()
+    let $list := $object-list?list
+    let $query-function := ".//"||$search-xpath||"[ft:query(., $query)]"  
+    
+    let $list :=
+        for $object in $objects-xml
+        let $id := string(util:eval-inline($object,$object-id))
+        let $object-map := $list?($id)
+        let $search-score as xs:float := 
+            if ($search-xpath||$search-query||"" != "")
+            then xs:float(ft:score($object))
+            else xs:float(0.0)
+        let $search-hits := 
+            if ($search-xpath||$search-query||"" != "")
+            (: then util:eval-inline($object, ".//" || $search-xpath)[ft:query(., $search-query)] :)
+            then util:eval-inline($object, $query-function)
+            else ()
+        return
+            map:entry(
+                $id,
+                map:merge ((
+                    $object-map,
+                    map:entry(
+                        "search-results",
+                        for $hit in $search-hits
+                        let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
+                        (: TODO delete following line? :)
+                        for $item at $pos in $kwic
+                        return 
+                            map:merge ((
+                                map:entry("context-previous", $kwic[$pos]/span[@class='previous']/string()),
+                                map:entry("keyword", $kwic[$pos]/span[@class='hi']/string()),
+                                map:entry("context-following", $kwic[$pos]/span[@class='following']/string()),
+                                map:entry("score", ft:score($hit))
+                            ))
+                    ),
+                    map:entry("score", $search-score)                
+                ))
+            )
+    let $list := map:merge($list)
+    let $object-list :=
+        map:put($object-list, "list", $list)
+    return $object-list
 };
 
 (:~
@@ -663,6 +779,77 @@ declare function edwebapi:get-objects(
         }
     (: TODO: Hack for exist-db 4.6.1 This can probably be solved more elegantly :)
     (:~ util:eval("collection('" || $collection || "')//" || $xpath) ~:)
+};
+
+(:~
+ : Make fulltext index search
+ :
+ : @return map with search results
+ :)
+declare function edwebapi:get-search-results(
+    $app-target as xs:string,
+    $search-id as xs:string,
+    $kwic-width as xs:string?,
+    $search-query as xs:string,
+    $search-type as xs:string?,
+    $slop as xs:string?,
+    $cache as xs:string?
+) as map(*) 
+{
+    let $init-indices := local:init-search-indices($app-target)
+
+    let $config := edwebapi:get-config($app-target)
+    let $data-collection := edwebapi:data-collection($app-target)
+
+
+    let $search-config := $config//appconf:search[@xml:id=$search-id]
+    let $search-config := 
+        if (empty($search-config)) 
+        then error(xs:QName("edwebapi:get-search-results-001"), "There is no search object configured with the ID '" || $search-id || "'.")
+        else $search-config
+
+    let $objects :=
+        for $target in $search-config//appconf:target
+        
+        let $object-type := $target/@object/string()
+        let $search-xpath := $target/@xpath/string()
+
+        (: Get object list with search :)
+        let $object-list := 
+           edwebapi:load-map-from-cache(
+                "edwebapi:get-object-list", 
+                [$app-target, $object-type], 
+                if ($cache = "yes")
+                then ()
+                else collection(edwebapi:data-collection($app-target))/*, 
+                $cache = "no"
+            )
+        return 
+            edwebapi:get-object-list-with-search(
+                $object-list, 
+                $app-target, 
+                $object-type, 
+                $search-xpath, 
+                $kwic-width, 
+                $search-query,
+                $search-type,
+                $slop
+            )?list?*
+
+    let $objects :=
+        for $object in $objects
+        let $score as xs:float := $object?score
+        order by $score descending
+        return $object
+    return
+        map:merge ((
+            map:entry("date-time", current-dateTime()),
+            map:entry("type", "search"),
+            map:entry("id", $search-id),
+            map:entry("query", $search-query),
+            map:entry("kwic-width", $kwic-width),
+            map:entry("list", $objects)
+        ))
 };
 
 (:~
@@ -856,4 +1043,94 @@ declare function edwebapi:data-collection(
 {
     let $config := edwebapi:get-config($app-target)
     return $config//appconf:project/appconf:collection/normalize-space()
+};
+
+(:~
+ : Creates new collection of indefinite depth recursively
+ :
+ : @param $path the path to the collection to be created
+ : @return null
+ :)
+declare function local:create-collection-from-path(
+    $path as xs:string
+) 
+{
+    let $collection-path := functx:substring-before-last($path, "/")
+    let $new-collection := functx:substring-after-last($path, "/")
+    return
+        if (not(xmldb:collection-available($collection-path)))
+        then (
+            local:create-collection-from-path($collection-path),
+            xmldb:create-collection($collection-path, $new-collection)
+        )
+        else xmldb:create-collection($collection-path, $new-collection)
+};
+
+(:~
+ : Updates collection configurations for search indices or creates new ones
+ : where none are found.
+ :)
+declare function local:init-search-indices(
+    $app-target as xs:string
+)
+{
+    let $config := edwebapi:get-config($app-target)
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $collections := ($config//appconf:object/appconf:collection/string())
+    (: let $xconf-root := 'xmldb:exist:///db/system/config' :)
+    let $xconf-root := '/db/system/config'
+    let $xconf-ns := "http://exist-db.org/collection-config/1.0"
+
+    for $collection in $collections
+    let $xconf-collection := $xconf-root || $data-collection || $collection
+    (: Security check, because files only should be created within xconf-root. :)
+    let $check :=
+        if (contains($xconf-collection,'..'))
+        then error(xs:QName("edwebapi:local-init-search-indices-001"), "Upwards pointing paths ('..') are forbidden: "||$xconf-collection)
+        else ()
+    let $xconf-path := $xconf-collection ||'/collection.xconf'
+
+    let $objects := $config//appconf:object[appconf:collection = $collection]
+    let $index := 
+        for $obj in $objects[appconf:lucene] 
+        return $obj/appconf:lucene/functx:change-element-ns-deep(., $xconf-ns)
+
+    let $index-updated :=
+        (: IF INDEX FOUND UPDATE INDEX :)
+        if (exists(doc($xconf-path))) 
+        then
+            let $weed-out :=
+                for $node in doc($xconf-path)//*:lucene/(*:text|*:analyzer|*:inline|*:ignore)
+                where not(functx:is-node-in-sequence-deep-equal($node, $index/*))
+                return true()
+            let $insert-new :=
+                let $old-index := doc($xconf-path)//*:lucene//(*:text|*:analyzer|*:inline|*:ignore)
+                for $text in $index/(*:text|*:analyzer|*:inline|*:ignore)
+                where not(functx:is-node-in-sequence-deep-equal($text, $old-index))
+                return true()
+            return (true() = ($weed-out, $insert-new, false()))
+        (: IF INDEX NOT FOUND CREATE NEW INDEX :)
+        else true()
+    let $store-index :=
+        if ($index-updated)
+        then
+            let $xconf-new :=
+                <collection xmlns="http://exist-db.org/collection-config/1.0">
+                    <index xmlns:telota="http://www.telota.de" xmlns:tei="http://www.tei-c.org/ns/1.0">
+                        <fulltext default="none" attributes="false"/>
+                        <lucene>
+                            {$index/(*:analyzer|*:text|*:inline|*:ignore)}
+                        </lucene>
+                    </index>
+                </collection>
+            let $create-xconf-collection :=
+                if (not(xmldb:collection-available($xconf-collection))) 
+                then local:create-collection-from-path($xconf-collection)
+                else ()
+            return xmldb:store($xconf-collection, 'collection.xconf', $xconf-new)
+        else ()
+    return
+        if ($index-updated)
+        then xmldb:reindex($data-collection || $collection)
+        else (false())
 };

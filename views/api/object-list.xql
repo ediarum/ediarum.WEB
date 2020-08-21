@@ -29,6 +29,11 @@ let $object-type := request:get-parameter("object-type",request:get-attribute("o
 let $cache := request:get-parameter("cache", request:get-attribute("cache"))
 let $app-target := request:get-parameter("app-target",request:get-attribute("app-target"))
 
+let $search-query := request:get-parameter("search",request:get-attribute("search"))
+let $kwic-width := request:get-parameter("kwic-width",request:get-attribute("kwic-width"))
+let $search-type := request:get-parameter("search-type",request:get-attribute("search-type"))
+let $slop := request:get-parameter("slop",request:get-attribute("slop"))
+
 let $order := request:get-parameter("order", request:get-attribute("order"))
 let $filter-expression := request:get-parameter("filterExpression", ())
 let $range := number(request:get-parameter("range", request:get-attribute("range")))
@@ -82,6 +87,20 @@ return
             else if ($show eq 'all') 
             then map:merge(())
             else map:merge(())
+        let $result := 
+            if ($search-query||"" != "")
+            then 
+                edwebapi:get-object-list-with-search(
+                    $result, 
+                    $app-target, 
+                    $object-type, 
+                    ".", 
+                    $kwic-width, 
+                    $search-query,
+                    $search-type,
+                    $slop
+                )
+            else $result
         let $array := $result?list?*
         let $array := edwebapi:order-items($array, $order)
         let $array := edwebapi:filter-list($array, $result?filter, $filter-params)

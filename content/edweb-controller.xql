@@ -63,6 +63,9 @@ declare function local:api-routing(
         then $f("/api", "api/all-list.xql", $params)
         else $f("/api", "api/show-config.xql", $params),
 
+        (: Search:)
+        $f("/api/search/<search-id>", "api/search.xql", $params),
+
         (: List objects and relations :)
         $f("/api/<object-type>", "api/object-list.xql", $params),
 

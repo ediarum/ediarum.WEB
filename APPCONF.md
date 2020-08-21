@@ -13,9 +13,13 @@
       - [Relation property](#relation-property)
     - [3.3 Views / XSLTs](#33-views--xslts)
       - [Base information](#base-information-1)
+    - [3.4 Search index](#34-search-index)
+      - [Base information](#base-information-2)
   - [4. Definition of a relation](#4-definition-of-a-relation)
     - [4.1 Base information](#41-base-information)
     - [4.2 Subject and object condition](#42-subject-and-object-condition)
+  - [5. Definition of a search routine](#5-definition-of-a-search-routine)
+    - [5.1 Base information](#51-base-information)
 
 ## 1. Structure
 
@@ -26,6 +30,8 @@ E.g. a digital scholarly edition of letters can contain the following object typ
 Between the objects relations can be formed.
 These relations are also of different kinds and should be defined.
 E.g. a digital scholarly edition of letters defines the following relations: between person and letter (as sender or recipient), between person and place (as birthplace or place of residence), etc.
+
+Besides objects and relations it is also possible to define search indexes.
 
 The structure of the `appconf.xml` is as follows:
 
@@ -39,6 +45,9 @@ The structure of the `appconf.xml` is as follows:
     ...
     <relation> ... </relation>
     <relation> ... </relation>
+    ...
+    <search> ... </search>
+    <search> ... </search>
     ...
 </config>
 ```
@@ -262,6 +271,51 @@ The basic information for a view defines where to find the XSLT for the transfor
 - [edweb:add-view-nav ($node, $model)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L498-L520)
 - [edweb:add-view-nav ($node, $model, $views, $selected)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L522-L548)
 
+### 3.4 Search index
+
+For each object type it is possible to define an search index.
+
+Example, where to define an index:
+
+```xml
+<object>
+    ...
+    <lucene>
+        ...
+    </lucene>
+</object>
+```
+
+#### Base information
+
+The basic information for a lucene index contains the xml-structure which should be used by eXist-db, for details see [http://exist-db.org/exist/apps/doc/lucene.xml](http://exist-db.org/exist/apps/doc/lucene.xml).
+
+- one or more `analyzer` defining the used analyzers.
+- one or more `text` defining which index should be created.
+- one or more `inline` defining which elements doesn't insert word boundaries like `br`.
+- one or more `ignore` defining which elements should be ignored for search.
+
+```xml
+<lucene>
+    <analyzer class="org.apache.lucene.analysis.standard.StandardAnalyzer"/>
+    <analyzer id="ws" class="org.apache.lucene.analysis.core.WhitespaceAnalyzer"/>
+    <text qname="TITLE" analyzer="ws"/>
+    <text qname="p">
+        <inline qname="em"/>
+    </text>
+    <text match="//foo/*"/>
+    <!-- "inline" and "ignore" can be specified globally or per-index as shown above -->
+    <inline qname="b"/>
+    <ignore qname="note"/>
+</lucene>
+```
+
+*Related API call*
+
+```
+/api/search/<search-id>
+/api/<object-type>?show=list&search=<query>
+```
 
 ## 4. Definition of a relation
 
@@ -345,4 +399,38 @@ The parameter are the following:
         }
     </object-condition>
 </relation>
+```
+
+## 5. Definition of a search routine
+
+It is possible to define search routines which can search within multiple object types. All objects with hits are returned ordered by the search score, see [http://exist-db.org/exist/apps/doc/lucene.xml#query](http://exist-db.org/exist/apps/doc/lucene.xml#query).
+
+```xml
+<config>
+    ...
+    <search> ... </search>
+    <search> ... </search>
+    ...
+</config>
+```
+
+### 5.1 Base information
+
+The basic information for a search defines ...
+
+- `search/@xml:id` ID of the search routine used by api calls.
+- one or more `target` define where to search for.
+- `target/@object` defines the object type to be searched.
+- `target/xpath` defines a xpath expression where to search within the objects.
+
+```xml
+<search xml:id="letters">
+    <target object="letters" xpath="tei:p"/>
+</search>
+```
+
+*Related API call*
+
+```
+/api/search/<search-id>?q=<query>
 ```
