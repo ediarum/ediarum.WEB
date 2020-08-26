@@ -565,7 +565,12 @@ declare function edwebapi:get-object-list(
                             )
                 else if (exists($f/appconf:root[@type = 'label'])) 
                 then $o?labels?*
-                else util:eval-inline($objects-xml[$pos], $f/appconf:xpath/string()||"/normalize-space()")
+                else 
+                    if (ends-with($f/appconf:xpath/string(),')'))
+                    then 
+                        util:eval-inline($objects-xml[$pos], $f/appconf:xpath/string())
+                    else
+                        util:eval-inline($objects-xml[$pos], $f/appconf:xpath/string()||"/normalize-space()")
             let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
             return 
                 map:entry(
