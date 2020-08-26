@@ -508,6 +508,10 @@ declare function edwebapi:get-object-list(
             else if ($label-function/@type = 'xquery') 
             then array { util:eval($label-function)($object) }
             else ()
+        let $labels := 
+            if (array:size($labels) = 0)
+            then array { "<without-label>" }
+            else $labels
         let $search-score as xs:float := xs:float(0.0)
         return
             map:merge ((
