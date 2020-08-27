@@ -98,7 +98,8 @@ Returns a information of a single object.
   - `xml` the XML representation of the object is retrieved. Can be used with `view`.
   - `html` a HTML serialization of the object is retrieved. To be used with `view`.
   - `text` a text serialization of the object is retrieved. To be used with `view`.
-  - of not set some object information is retrieved as JSON
+  - `json-xml` some of the object information is retrieved as JSON, including the XML.
+  - if not set: some object information is retrieved as JSON
 - `view` defines which view (see [APPCONF.md](APPCONF.md)) is used to transform the object. The result is retrieved. To be used with `output`.
 
 ### 2.2 Examples

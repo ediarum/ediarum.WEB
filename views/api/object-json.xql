@@ -13,6 +13,7 @@ let $object-type := request:get-parameter("object-type", request:get-attribute("
 let $object-id := request:get-parameter("object-id", request:get-attribute("object-id"))
 
 let $part := request:get-parameter("part", request:get-attribute("part"))
+let $output := request:get-parameter("output", request:get-attribute("output"))
 
 let $map := edwebapi:get-object($app-target, $object-type, $object-id)
 return
@@ -25,5 +26,7 @@ return
                 edwebapi:list-parts($map?xml, $map?parts, $part, $object-type, $object-id)
             )
         ))
+    else if ($output = "json-xml")
+    then $map
     else map:remove($map, 'xml')
 
