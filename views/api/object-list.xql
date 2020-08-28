@@ -28,6 +28,7 @@ declare function local:init-params(
 let $object-type := request:get-parameter("object-type",request:get-attribute("object-type"))
 let $cache := request:get-parameter("cache", request:get-attribute("cache"))
 let $app-target := request:get-parameter("app-target",request:get-attribute("app-target"))
+let $limit := request:get-parameter("limit",request:get-attribute("limit"))
 
 let $search-query := request:get-parameter("search",request:get-attribute("search"))
 let $kwic-width := request:get-parameter("kwic-width",request:get-attribute("kwic-width"))
@@ -53,7 +54,7 @@ let $result :=
     then 
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list-without-filter", 
-            [$app-target, $object-type], 
+            [$app-target, $object-type, $limit], 
             if ($cache = "yes")
             then ()
             else edwebapi:data-collection($app-target), 
@@ -63,7 +64,7 @@ let $result :=
     then
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list", 
-            [$app-target, $object-type], 
+            [$app-target, $object-type, $limit], 
             if ($cache = "yes")
             then ()
             else edwebapi:data-collection($app-target), 
@@ -73,7 +74,7 @@ let $result :=
     then 
         edwebapi:load-map-from-cache(
             "edwebapi:get-relation-list",
-            [$app-target, $object-type], 
+            [$app-target, $object-type, $limit], 
             if ($cache = "yes")
             then ()
             else edwebapi:data-collection($app-target), 

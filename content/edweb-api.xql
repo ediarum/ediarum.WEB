@@ -22,6 +22,7 @@ declare variable $edwebapi:cache-collection := "/db/apps/ediarum.web/cache";
 declare variable $edwebapi:projects-collection := "/db/projects";
 (: See also $edweb:param-separator. :)
 declare variable $edwebapi:param-separator := ";";
+declare variable $edwebapi:object-limit := 10000;
 
 declare function functx:change-element-ns-deep($element as element(), $newns as xs:string) as element() {let $newName := QName($newns, name($element)) return (element {$newName} {$element/@*, for $child in $element/node() return if ($child instance of element()) then functx:change-element-ns-deep($child, $newns) else $child})};
 declare function functx:escape-for-regex($arg as xs:string?) as xs:string {replace($arg, '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1')};
@@ -91,7 +92,8 @@ declare function edwebapi:filter-list(
  :)
 declare function edwebapi:get-all(
     $app-target as xs:string,
-    $cache as xs:string?
+    $limit as xs:string?,
+    $cache as xs:string
 ) 
 {
     let $object-types := edwebapi:get-config($app-target)//appconf:object/@xml:id
@@ -100,7 +102,7 @@ declare function edwebapi:get-all(
         let $map :=
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list", 
-                [$app-target, $object-type], 
+                [$app-target, $object-type, $limit], 
                 if ($cache = "yes")
                 then ()
                 else edwebapi:data-collection($app-target), 
@@ -443,7 +445,8 @@ declare function edwebapi:get-object-as(
  :)
 declare function edwebapi:get-object-list(
     $app-target as xs:string,
-    $object-type as xs:string
+    $object-type as xs:string,
+    $limit as xs:string?
 ) as map(*) 
 {
     let $config := edwebapi:get-config($app-target)
@@ -493,8 +496,13 @@ declare function edwebapi:get-object-list(
         ))
     let $data-collection := edwebapi:data-collection($app-target)
     let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
+    let $count := count($objects-xml)
+    let $limit :=
+        if ($limit||"" != "")
+        then number($limit)
+        else $edwebapi:object-limit
     let $objects := 
-        for $object in $objects-xml
+        for $object in $objects-xml[position() <= $limit]
         let $id := string(util:eval-inline($object,$object-id))
         let $error := 
             if (count($id) != 1)
@@ -548,7 +556,7 @@ declare function edwebapi:get-object-list(
                     let $relations := 
                         edwebapi:load-map-from-cache(
                             "edwebapi:get-relation-list",
-                            [$app-target, $rel-type-name],
+                            [$app-target, $rel-type-name, $limit],
                             $data-collection,
                             false()
                         )
@@ -609,6 +617,8 @@ declare function edwebapi:get-object-list(
             map:entry("date-time", current-dateTime()),
             map:entry("type", "objects"),
             map:entry("filter", $filter),
+            map:entry("results-found", $count),
+            map:entry("results-shown", if ($count < $limit) then $count else $limit),
             map:entry("list", map:merge(( $objects )) )
         ))
 };
@@ -728,7 +738,8 @@ declare function edwebapi:get-object-list-with-search(
  :)
 declare function edwebapi:get-object-list-without-filter(
     $app-target as xs:string,
-    $object-type as xs:string
+    $object-type as xs:string,
+    $limit as xs:string?
 ) as map(*) 
 {
     let $config := edwebapi:get-config($app-target)
@@ -745,8 +756,13 @@ declare function edwebapi:get-object-list-without-filter(
     let $object-id := $object-def/appconf:item/appconf:id/string()
     let $data-collection := edwebapi:data-collection($app-target)
     let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
+    let $count := count($objects-xml)
+    let $limit :=
+        if ($limit||"" != "")
+        then number($limit)
+        else $edwebapi:object-limit
     let $objects := 
-        for $object in $objects-xml
+        for $object in $objects-xml[position() <= $limit]
         let $id := string(util:eval-inline($object,$object-id))
         let $error := 
             if (count($id) != 1)
@@ -786,6 +802,8 @@ declare function edwebapi:get-object-list-without-filter(
             map:entry("date-time", current-dateTime()),
             map:entry("type", "objects"),
             map:entry("filter", map:merge(( )) ),
+            map:entry("results-found", $count),
+            map:entry("results-shown", if ($count < $limit) then $count else $limit),
             map:entry("list", map:merge(( $objects )) )
         ))
 };
@@ -834,6 +852,7 @@ declare function edwebapi:get-search-results(
     $search-query as xs:string,
     $search-type as xs:string?,
     $slop as xs:string?,
+    $limit as xs:string?,
     $cache as xs:string?
 ) as map(*) 
 {
@@ -859,7 +878,7 @@ declare function edwebapi:get-search-results(
         let $object-list := 
            edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list", 
-                [$app-target, $object-type], 
+                [$app-target, $object-type, $limit], 
                 if ($cache = "yes")
                 then ()
                 else edwebapi:data-collection($app-target), 
@@ -985,7 +1004,8 @@ declare function local:get-part-map(
  :)
 declare function edwebapi:get-relation-list(
     $app-target as xs:string, 
-    $relation-type-name as xs:string
+    $relation-type-name as xs:string,
+    $limit as xs:string?
 ) as map(*) 
 {
     let $config := edwebapi:get-config($app-target)
@@ -1010,7 +1030,7 @@ declare function edwebapi:get-relation-list(
         let $map := 
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list-without-filter", 
-                [$app-target, $object-type], 
+                [$app-target, $object-type, $limit], 
                 (), 
                 false()
             )
@@ -1020,7 +1040,7 @@ declare function edwebapi:get-relation-list(
         let $map := 
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list-without-filter", 
-                [$app-target, $subject-type], 
+                [$app-target, $subject-type, $limit], 
                 (), 
                 false()
             )
