@@ -138,13 +138,37 @@ Returns a information of a single object.
 #### JSON output: `/api/<object-type>/<object-id>`
 
 - `?absolute-resource-id` eXist-db specific id of the ressource containing the object 
-- `?label` of object
+- `?filter` values of object, see list of objects above.
 - `?id` of object
+- `?label` of object
+- `?labels` of object
+- `?label-filter` of object, see list of objects above.
+- `?inner-nav` of object
+- `?inner-nav?("inner-nav-id")` contains the following values:
+  - `?id` where to find the IDs of items (XPath)
+  - `?label-function` of items (XQuery function)
+  - `?list` of items. The items of the array contain the following values:
+    - `?id` of item
+    - `?label` of item
+  - `?name` of inner-nav
+  - `?order-by` how to order the items. Possible values are
+    - `label` order by label
+    - if not set items are ordered by position in xml
+  - `?xpath` where to find the inner-nav items (XPath)
+- `?object-type` of object
+- `?parts` of object if defined and found
+- `?parts?("part-id)` contains the following values:
+  - `?depends` on which other part definitions
+  - `?id` definition of part id
+  - `?path` full path to part
+  - `?root` definition of part root
+  - `?xmlid` of part
 - `?views` contains the defined views for the object
-- `?views?("view-id")?xslt` relative path to view xslt
-- `?views?("view-id")?params` defined parameters for the view
-- `?views?("view-id")?label` of view
-- `?views?("view-id")?id` of view
+- `?views?("view-id")` contains the following values:
+  - `?id` of view
+  - `?label` of view
+  - `?params` defined parameters for the view
+  - `?xslt` relative path to view xslt
 
 **Example**
 

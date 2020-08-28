@@ -111,6 +111,8 @@ The basic information for an object type defines where to find the objects in th
 
 Properties are defined within an object definition in a `<filters>` tag and can be used in the frontend as filters.
 
+*Important: The ID is always be included as property and don't has to be defined again.*
+
 Example, where to define a property:
 
 ```xml
