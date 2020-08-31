@@ -440,7 +440,13 @@ declare function edwebapi:eval-base-data-for-object(
         else if ($label-function/@type = 'xquery') 
         then array { util:eval($label-function)($object) }
         else ()
-    let $label := $labels?1
+    let $label := 
+        try {
+        	$labels?1
+        }
+        catch * {
+            $id
+        }
     let $label :=
         if (normalize-space($label) = "")
         then ("<empty-title>")
@@ -502,7 +508,12 @@ declare function edwebapi:eval-filters-for-object(
                         )
             else if (exists($f/appconf:root[@type = 'label'])) 
             then $object?labels?*
-            else util:eval-inline($object-xml, $f/appconf:xpath/string())
+            else 
+                if (ends-with($f/appconf:xpath/string(),')'))
+                then 
+                    util:eval-inline($object-xml, $f/appconf:xpath/string())
+                else
+                    util:eval-inline($object-xml, $f/appconf:xpath/string()||"/normalize-space()")
         let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
         return 
             map:entry(
