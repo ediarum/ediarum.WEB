@@ -25,7 +25,7 @@ With the help of ediarum.WEB, developers can build an entire website or just a b
 
 ## Documentation
 
-An introduction how to use ediarum.WEB is available at https://www.ediarum.org/docs/ediarum-web-step-for-step.
+An introduction how to use ediarum.WEB is available at https://www.ediarum.org/docs/ediarum-web-step-for-step/index.html.
 
 For the structure of the `appconf.xml` see [APPCONF.md](APPCONF.md).
 
