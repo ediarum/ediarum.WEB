@@ -71,6 +71,15 @@ The following parameters are only for object lists not for relation lists:
   - `list` show objects matching the filter criteria
 - `slop` the distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
 
+The following parameters are for relation lists:
+
+- `limit` optional parameter. Defines how many (unordered) entries are retrieved (default value is 10'000). For relations it defines how many object entries are used for searching the relations.
+- `object` defines the object ID the items to be filtered by. To be used with `show=list`.
+- `subject` defines the subject ID the items to be filtered by. To be used with `show=list`
+- `show` possible values are:
+  - `list` show relation items matching filter criteria
+  - empty show all relation items
+
 ### 3.2 Examples
 
 - manuscript list filtered by repository: `/api/ms?show=list&city=Berlin&repository=Staatsbibliothek`

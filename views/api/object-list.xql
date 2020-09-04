@@ -42,6 +42,8 @@ let $page := number(request:get-parameter("page", request:get-attribute("page"))
 let $from := number(request:get-parameter("from", request:get-attribute("from")))
 
 let $id := request:get-parameter("id", request:get-attribute("id"))
+let $object := request:get-parameter("object",request:get-attribute("object"))
+let $subject := request:get-parameter("subject",request:get-attribute("subject"))
 
 let $show := request:get-parameter("show", request:get-attribute("show"))
 
@@ -115,4 +117,9 @@ return
             else $array
     else if ($is-object and ($show eq 'filter')) 
     then $result?filter
+    (: Relations :)
+    else if ($show eq 'list' and $subject||"" != "")
+    then $result?list?*[?subject = $subject]
+    else if ($show eq 'list' and $object||"" != "")
+    then $result?list?*[?object = $object]
     else $result
