@@ -22,6 +22,7 @@ declare variable $edwebapi:cache-collection := "/db/apps/ediarum.web/cache";
 declare variable $edwebapi:projects-collection := "/db/projects";
 (: See also $edweb:param-separator. :)
 declare variable $edwebapi:param-separator := ";";
+declare variable $edwebapi:object-limit := 10000;
 
 declare function functx:change-element-ns-deep($element as element(), $newns as xs:string) as element() {let $newName := QName($newns, name($element)) return (element {$newName} {$element/@*, for $child in $element/node() return if ($child instance of element()) then functx:change-element-ns-deep($child, $newns) else $child})};
 declare function functx:escape-for-regex($arg as xs:string?) as xs:string {replace($arg, '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1')};
@@ -91,7 +92,8 @@ declare function edwebapi:filter-list(
  :)
 declare function edwebapi:get-all(
     $app-target as xs:string,
-    $cache as xs:string?
+    $limit as xs:string?,
+    $cache as xs:string
 ) 
 {
     let $object-types := edwebapi:get-config($app-target)//appconf:object/@xml:id
@@ -100,10 +102,10 @@ declare function edwebapi:get-all(
         let $map :=
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list", 
-                [$app-target, $object-type], 
+                [$app-target, $object-type, $limit], 
                 if ($cache = "yes")
                 then ()
-                else collection(edwebapi:data-collection($app-target))/*, 
+                else edwebapi:data-collection($app-target), 
                 $cache = "no"
             )
         return $map?list
@@ -208,10 +210,23 @@ declare function local:list-part-ids(
 declare function edwebapi:load-map-from-cache(
     $function-name as xs:string, 
     $params as array(*), 
-    $node-set as node()*, 
+    $data-collection as xs:string?, 
     $reload as xs:boolean?
 ) as map(*) 
 {
+    let $node-set as node()* := 
+        if ($data-collection||"" = "") 
+        then 
+            ()
+        else if (xmldb:collection-available($data-collection))
+        then
+            collection($data-collection)/*
+        else if (doc-available($data-collection))
+        then
+            doc($data-collection)/*
+        else
+            error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "
+            ||$data-collection)
     let $arity := array:size($params)
     let $function := function-lookup(xs:QName($function-name), $arity)
     let $cache-collection := $edwebapi:cache-collection
@@ -266,33 +281,20 @@ declare function edwebapi:get-object(
 ) as map(*) 
 {
     let $object-def := edwebapi:get-config($app-target)//appconf:object[@xml:id=$object-type]
-    let $collection := $object-def/appconf:collection
     let $namespaces :=
         for $ns in $object-def/appconf:item/appconf:namespace
         let $prefix := $ns/@id/string()
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $collection := $object-def/appconf:collection
     let $root := $object-def/appconf:item/appconf:root
+    let $list := edwebapi:get-objects($data-collection, $collection, $root)
+
     let $id-xpath := $object-def/appconf:item/appconf:id
     let $find-expression := $id-xpath||"='"||$object-id||"'"
-    let $data-collection := edwebapi:data-collection($app-target)
-    let $list := edwebapi:get-objects($data-collection, $collection, $root)
     let $item := util:eval("$list["||$find-expression||"][1]")
 
-    let $label-function := $object-def/appconf:item/appconf:label[@type=('xquery','xpath')]
-    let $object-label := $object-def/appconf:item/appconf:label[@type='xpath']
-    let $label :=
-        if ($label-function/@type = 'xpath') 
-        then util:eval-inline($item, $label-function)
-        else if ($label-function/@type = 'xquery') 
-        then util:eval($label-function)($item)
-        else ()
-    let $label :=
-        if (count($label) > 1) 
-        then normalize-space($label[1])
-        else if (normalize-space($label) != '') 
-        then normalize-space($label)
-        else ("<without-title>")
     let $inner-nav :=
         for $n in $object-def/appconf:inner-navigation/appconf:navigation
         let $key := $n/@xml:id/string()
@@ -356,17 +358,15 @@ declare function edwebapi:get-object(
                     map:entry("params", $params)
                 )) 
             )
+    let $object-map := edwebapi:eval-base-data-for-object($object-def, $item)
+    let $filter-map := edwebapi:eval-filters-for-object($app-target, $object-def, $object-map, $item)
     return 
         map:merge((
-            map:entry(
-                "absolute-resource-id", 
-                util:absolute-resource-id($item[1])
-            ),
-            map:entry("label", $label),
+            $object-map,
+            $filter-map,
             map:entry("xml", $xml),
             map:entry("inner-nav", map:merge(( $inner-nav )) ),
             map:entry("parts", map:merge(( $parts )) ),
-            map:entry("id", $object-id),
             map:entry("views", map:merge(( $views )) )
         ))
 };
@@ -419,6 +419,130 @@ declare function edwebapi:get-object-as(
     return $result
 };
 
+declare function edwebapi:eval-base-data-for-object(
+    $object-def as node(),
+    $object as node()
+) as map(*)
+{
+    let $object-id := $object-def/appconf:item/appconf:id/string()
+    let $id := string(util:eval-inline($object,$object-id))
+    let $object-type := $object-def/@xml:id/string()
+    let $label-function := $object-def/appconf:item/appconf:label[@type=('xquery','xpath')]
+    let $error := 
+        if (count($id) != 1)
+        then (error(xs:QName("edwebapi:get-object-list-001"), "There should be exact one ID for each object."
+            ||" Count: "||count($id)||", ID function: "||$label-function||", Object: "
+            ||serialize($object) )) 
+        else ()
+    let $labels := 
+        if ($label-function/@type = 'xpath') 
+        then array { util:eval-inline($object, $label-function) }
+        else if ($label-function/@type = 'xquery') 
+        then array { util:eval($label-function)($object) }
+        else ()
+    let $label := 
+        try {
+        	$labels?1
+        }
+        catch * {
+            $id
+        }
+    let $label :=
+        if (normalize-space($label) = "")
+        then ("<empty-title>")
+        else $label
+    let $search-score as xs:float := xs:float(0.0)
+    return
+        map:merge ((
+            map:entry("id", $id),
+            map:entry("absolute-resource-id", util:absolute-resource-id($object)),
+            map:entry("object-type", $object-type),
+            map:entry("labels", $labels),
+            map:entry("label", $label),
+            map:entry("score", $search-score)
+        ))
+};
+
+declare function edwebapi:eval-filters-for-object(
+    $app-target as xs:string,
+    $object-def as node(),
+    $object as map(*),
+    $object-xml as node()
+) as map(*)
+{
+    let $filters := $object-def/appconf:filters/appconf:filter
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $filter-values :=
+        for $f in $filters
+        let $filter-id := $f/@xml:id/string()
+        let $filter-objects :=
+            if ($f/@type = "relation") 
+            then
+                let $rel-type-name := $f/appconf:relation/@id/string()
+                let $rel-perspective := $f/appconf:relation/@as/string()
+                let $rel-target :=
+                    switch($rel-perspective)
+                    case "subject" return "object"
+                    case "object" return "subject"
+                    default return
+                        error(xs:QName("edwebapi:get-object-list-002"),
+                            "Invalid configuration parameter value, only 'subject' or 'object' allowed."
+                        )
+                let $relations := 
+                    edwebapi:load-map-from-cache(
+                        "edwebapi:get-relation-list",
+                        [$app-target, $rel-type-name],
+                        $data-collection,
+                        false()
+                    )
+                let $items := $relations?list?*[?($rel-perspective) = $object?id]
+                for $i in $items return
+                    switch($f/appconf:label/string())
+                    case "predicate" return $i?predicate
+                    case "id" return $i?($rel-target)
+                    case "id+predicate" 
+                    return $i?($rel-target)||"+"||$i?predicate
+                    default return
+                        error(xs:QName("edwebapi:get-object-list-003"),
+                            "Invalid configuration parameter value, only 'id', 'predicate', and 'id+predicate' allowed."
+                        )
+            else if (exists($f/appconf:root[@type = 'label'])) 
+            then $object?labels?*
+            else 
+                if (ends-with($f/appconf:xpath/string(),')'))
+                then 
+                    util:eval-inline($object-xml, $f/appconf:xpath/string())
+                else
+                    util:eval-inline($object-xml, $f/appconf:xpath/string()||"/normalize-space()")
+        let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
+        return 
+            map:entry(
+                $filter-id, 
+                for $fo in $filter-objects 
+                return $filter-label-function($fo)
+            )
+    let $filter-values :=
+        (
+            $filter-values,
+            map:entry("id", $object?id)
+        )
+    let $label-filter-values :=
+        for $f in $filters[./appconf:root[@type = 'label']]
+        let $filter-id := $f/@xml:id/string()
+        let $filter-objects := $object?labels?*
+        let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
+        return 
+            map:entry(
+                $filter-id, 
+                for $fo in $filter-objects 
+                return array { $filter-label-function($fo) }
+            )
+    return 
+        map:merge ((
+            map:entry("filter", map:merge(( $filter-values )) ), 
+            map:entry("label-filter", map:merge(( $label-filter-values )) ) 
+        ))
+};
 
 (:~
  : The function retrieves objects from the data.
@@ -430,21 +554,39 @@ declare function edwebapi:get-object-as(
  :)
 declare function edwebapi:get-object-list(
     $app-target as xs:string,
-    $object-type as xs:string
+    $object-type as xs:string,
+    $limit as xs:string?
 ) as map(*) 
 {
-    let $config := edwebapi:get-config($app-target)
     let $object-type := string($object-type)
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $config := edwebapi:get-config($app-target)
     let $object-def := $config//appconf:object[@xml:id=$object-type]
     let $collection := $object-def/appconf:collection
+    let $root := $object-def/appconf:item/appconf:root
     let $namespaces :=
         for $ns in $object-def/appconf:item/appconf:namespace
         let $prefix := $ns/@id/string()
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
-    let $root := $object-def/appconf:item/appconf:root
-    let $label-function := $object-def/appconf:item/appconf:label[@type=('xquery','xpath')]
-    let $object-id := $object-def/appconf:item/appconf:id/string()
+    let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
+    let $count := count($objects-xml)
+    let $limit :=
+        if ($limit||"" != "")
+        then number($limit)
+        else $edwebapi:object-limit
+     let $objects := 
+        for $object in $objects-xml[position() <= $limit]
+        let $object-map := edwebapi:eval-base-data-for-object($object-def, $object)
+        let $filter-map := edwebapi:eval-filters-for-object($app-target, $object-def, $object-map, $object)
+        return 
+            map:entry(
+                $object-map?id,
+                map:merge(( 
+                    $object-map, 
+                    $filter-map
+                ))
+            )
     let $filters := $object-def/appconf:filters/appconf:filter
     let $filter :=
         map:merge((
@@ -467,115 +609,13 @@ declare function edwebapi:get-object-list(
                     ))
                 )
         ))
-    let $data-collection := edwebapi:data-collection($app-target)
-    let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
-    let $objects := 
-        for $object in $objects-xml
-        let $id := string(util:eval-inline($object,$object-id))
-        let $error := 
-            if (count($id) != 1)
-            then (error(xs:QName("edwebapi:get-object-list-001"), "There should be exact one ID for each object."
-                ||" Count: "||count($id)||", ID function: "||$label-function||", Object: "
-                ||serialize($object) )) 
-            else ()
-        let $labels := 
-            if ($label-function/@type = 'xpath') 
-            then array { util:eval-inline($object, $label-function) }
-            else if ($label-function/@type = 'xquery') 
-            then array { util:eval($label-function)($object) }
-            else ()
-        let $search-score as xs:float := xs:float(0.0)
-        return
-            map:merge ((
-                map:entry("id", $id),
-                map:entry("absolute-resource-id", util:absolute-resource-id($object)),
-                map:entry("object-type", $object-type),
-                map:entry(
-                    "labels", $labels
-                ),
-                map:entry(
-                    "label", $labels?1
-                ),
-                map:entry("score", $search-score)
-            ))
-    let $objects := 
-        for $o at $pos in $objects
-        let $id := $o?id
-        let $filter-values :=
-            for $f in $filters
-            let $filter-id := $f/@xml:id/string()
-            let $filter-objects :=
-                if ($f/@type = "relation") 
-                then
-                    let $rel-type-name := $f/appconf:relation/@id/string()
-                    let $rel-perspective := $f/appconf:relation/@as/string()
-                    let $rel-target :=
-                        switch($rel-perspective)
-                        case "subject" return "object"
-                        case "object" return "subject"
-                        default return
-                            error(xs:QName("edwebapi:get-object-list-002"),
-                                "Invalid configuration parameter value, only 'subject' or 'object' allowed."
-                            )
-                    let $relations := 
-                        edwebapi:load-map-from-cache(
-                            "edwebapi:get-relation-list",
-                            [$app-target, $rel-type-name],
-                            collection($data-collection)/*,
-                            false()
-                        )
-                    let $items := $relations?list?*[?($rel-perspective) = $id]
-                    for $i in $items return
-                        switch($f/appconf:label/string())
-                        case "predicate" return $i?predicate
-                        case "id" return $i?($rel-target)
-                        case "id+predicate" 
-                        return $i?($rel-target)||"+"||$i?predicate
-                        default return
-                            error(xs:QName("edwebapi:get-object-list-003"),
-                                "Invalid configuration parameter value, only 'id', 'predicate', and 'id+predicate' allowed."
-                            )
-                else if (exists($f/appconf:root[@type = 'label'])) 
-                then $o?labels?*
-                else util:eval-inline($objects-xml[$pos], ".//"||$f/appconf:xpath/string())
-            let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
-            return 
-                map:entry(
-                    $filter-id, 
-                    for $fo in $filter-objects 
-                    return $filter-label-function($fo)
-                )
-        return 
-            map:merge(( 
-                $o, 
-                map:entry( "filter", map:merge(( $filter-values )) ) 
-            ))
-    let $objects := 
-        for $o in $objects
-        let $label-filter-values :=
-            for $f in $filters[./appconf:root[@type = 'label']]
-            let $filter-id := $f/@xml:id/string()
-            let $filter-objects := $o?labels?*
-            let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
-            return 
-                map:entry(
-                    $filter-id, 
-                    for $fo in $filter-objects 
-                    return array { $filter-label-function($fo) }
-                )
-        return 
-            map:entry(
-                $o?id,
-                map:merge(( 
-                    $o, 
-                    map:entry("label-filter", map:merge(( $label-filter-values )) ) 
-                ))
-            )
     return
         map:merge((
             map:entry("date-time", current-dateTime()),
             map:entry("type", "objects"),
             map:entry("filter", $filter),
+            map:entry("results-found", $count),
+            map:entry("results-shown", if ($count < $limit) then $count else $limit),
             map:entry("list", map:merge(( $objects )) )
         ))
 };
@@ -695,7 +735,8 @@ declare function edwebapi:get-object-list-with-search(
  :)
 declare function edwebapi:get-object-list-without-filter(
     $app-target as xs:string,
-    $object-type as xs:string
+    $object-type as xs:string,
+    $limit as xs:string?
 ) as map(*) 
 {
     let $config := edwebapi:get-config($app-target)
@@ -712,40 +753,19 @@ declare function edwebapi:get-object-list-without-filter(
     let $object-id := $object-def/appconf:item/appconf:id/string()
     let $data-collection := edwebapi:data-collection($app-target)
     let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
+    let $count := count($objects-xml)
+    let $limit :=
+        if ($limit||"" != "")
+        then number($limit)
+        else $edwebapi:object-limit
     let $objects := 
-        for $object in $objects-xml
-        let $id := string(util:eval-inline($object,$object-id))
-        let $error := 
-            if (count($id) != 1)
-            then (error(xs:QName("edwebapi:get-object-list-without-filter-001"), "There should be exact one ID for each object."
-                ||" Count: "||count($id)||", ID function: "||$label-function||", Object: "
-                ||serialize($object) )) 
-            else ()
-        let $labels := 
-            if ($label-function/@type = 'xpath') 
-            then array { util:eval-inline($object, $label-function) }
-            else if ($label-function/@type = 'xquery') 
-            then array { util:eval($label-function)($object) }
-            else ()
-        return
-            map:merge ((
-                map:entry("id", $id),
-                map:entry("absolute-resource-id", util:absolute-resource-id($object)),
-                map:entry("object-type", $object-type),
-                map:entry(
-                    "labels", $labels
-                ),
-                map:entry(
-                    "label", $labels?1
-                )
-            ))
-    let $objects := 
-        for $o in $objects
+        for $object in $objects-xml[position() <= $limit]
+        let $object-map := edwebapi:eval-base-data-for-object($object-def, $object)
         return 
             map:entry(
-                $o?id,
+                $object-map?id,
                 map:merge(( 
-                    $o
+                    $object-map
                 ))
             )
     return
@@ -753,6 +773,8 @@ declare function edwebapi:get-object-list-without-filter(
             map:entry("date-time", current-dateTime()),
             map:entry("type", "objects"),
             map:entry("filter", map:merge(( )) ),
+            map:entry("results-found", $count),
+            map:entry("results-shown", if ($count < $limit) then $count else $limit),
             map:entry("list", map:merge(( $objects )) )
         ))
 };
@@ -772,7 +794,15 @@ declare function edwebapi:get-objects(
 ) as node()* 
 {
     try { 
-        util:eval("collection($data-collection||$collection)//"||$root)
+        if (xmldb:collection-available($data-collection||$collection))
+        then
+            util:eval("collection($data-collection||$collection)//"||$root)
+        else if (doc-available($data-collection||$collection))
+        then
+            util:eval("doc($data-collection||$collection)//"||$root)
+        else
+            error(xs:QName("edwebapi:get-objects-002"), "Can't find collection or resource. data-collection: "
+            ||$data-collection||", collection/resource: "||$collection)
     } 
     catch * { error(xs:QName("edwebapi:get-objects-001"), "Can't load objects. data-collection: "
         ||$data-collection||", collection: "||$collection||", root: "||$root)
@@ -793,6 +823,7 @@ declare function edwebapi:get-search-results(
     $search-query as xs:string,
     $search-type as xs:string?,
     $slop as xs:string?,
+    $limit as xs:string?,
     $cache as xs:string?
 ) as map(*) 
 {
@@ -818,10 +849,10 @@ declare function edwebapi:get-search-results(
         let $object-list := 
            edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list", 
-                [$app-target, $object-type], 
+                [$app-target, $object-type, $limit], 
                 if ($cache = "yes")
                 then ()
-                else collection(edwebapi:data-collection($app-target))/*, 
+                else edwebapi:data-collection($app-target), 
                 $cache = "no"
             )
         return 
@@ -944,7 +975,8 @@ declare function local:get-part-map(
  :)
 declare function edwebapi:get-relation-list(
     $app-target as xs:string, 
-    $relation-type-name as xs:string
+    $relation-type-name as xs:string,
+    $limit as xs:string?
 ) as map(*) 
 {
     let $config := edwebapi:get-config($app-target)
@@ -962,14 +994,11 @@ declare function edwebapi:get-relation-list(
 
     let $label-function := $relation-type/appconf:item/appconf:label[@type=('xquery','xpath')]
 
-    let $subject-function := util:eval($relation-type/appconf:subject-condition)
-    let $object-function := util:eval($relation-type/appconf:object-condition)
-
     let $objects :=
         let $map := 
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list-without-filter", 
-                [$app-target, $object-type], 
+                [$app-target, $object-type, $limit], 
                 (), 
                 false()
             )
@@ -979,33 +1008,70 @@ declare function edwebapi:get-relation-list(
         let $map := 
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list-without-filter", 
-                [$app-target, $subject-type], 
+                [$app-target, $subject-type, $limit], 
                 (), 
                 false()
             )
         return $map?list?* (: "list-without-filter" :)
     let $data-collection := edwebapi:data-collection($app-target)
     let $relations := edwebapi:get-objects($data-collection, $collection, $root)
+    let $count := count($relations)
 
+    let $limit :=
+        if ($limit||"" != "")
+        then number($limit)
+        else $edwebapi:object-limit
     let $relations :=
-        for $rel in $relations
+        for $rel in $relations[position() <= $limit]
         return 
             map:merge((
                 map:entry("xml", $rel),
                 map:entry("absolute-resource-id", util:absolute-resource-id($rel))
             ))
+
+
     let $relations :=
-        for $r in $relations
-        for $s in $subjects
-        where $subject-function($r, $s)
-        return 
-            map:merge(( $r, map:entry("subject", $s?id) ))
+        if ($relation-type/appconf:subject-condition/@type = "resource")
+        then
+            for $r in $relations
+            let $s := $subjects[?absolute-resource-id = $r?absolute-resource-id]
+            return
+                map:merge(( $r, map:entry("subject", $s?id) ))
+        else if ($relation-type/appconf:subject-condition/@type = "id")
+        then
+            for $r in $relations
+            let $id := util:eval-inline($r?xml,$relation-type/appconf:subject-condition)
+            let $s := $subjects[?id = $id]
+            return
+                map:merge(( $r, map:entry("subject", $s?id) ))
+        else
+            let $subject-function := util:eval($relation-type/appconf:subject-condition)
+            for $r in $relations
+            for $s in $subjects
+            where $subject-function($r, $s)
+            return 
+                map:merge(( $r, map:entry("subject", $s?id) ))
     let $relations :=
-        for $r in $relations
-        for $o in $objects
-        where $object-function($r, $o)
-        return 
-            map:merge(( $r, map:entry("object", $o?id) ))
+        if ($relation-type/appconf:object-condition/@type = "resource")
+        then
+            for $r in $relations
+            let $s := $objects[?absolute-resource-id = $r?absolute-resource-id]
+            return
+                map:merge(( $r, map:entry("object", $s?id) ))
+        else if ($relation-type/appconf:object-condition/@type = "id")
+        then
+            for $r in $relations
+            let $id := util:eval-inline($r?xml,$relation-type/appconf:object-condition)
+            let $s := $objects[?id = $id]
+            return
+                map:merge(( $r, map:entry("object", $s?id) ))
+        else
+            let $object-function := util:eval($relation-type/appconf:object-condition)
+            for $r in $relations
+            for $o in $objects
+            where $object-function($r, $o)
+            return 
+                map:merge(( $r, map:entry("object", $o?id) ))
     let $relations :=
         for $r in $relations
         return 
@@ -1027,6 +1093,8 @@ declare function edwebapi:get-relation-list(
             map:entry("subject-type", $subject-type),
             map:entry("object-type", $object-type),
             map:entry("name", $name),
+            map:entry("results-found", $count),
+            map:entry("results-shown", if ($count < $limit) then $count else $limit),
             map:entry("list", $relations )
         ))
 };

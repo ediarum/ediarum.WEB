@@ -28,6 +28,7 @@ declare function local:init-params(
 let $object-type := request:get-parameter("object-type",request:get-attribute("object-type"))
 let $cache := request:get-parameter("cache", request:get-attribute("cache"))
 let $app-target := request:get-parameter("app-target",request:get-attribute("app-target"))
+let $limit := request:get-parameter("limit",request:get-attribute("limit"))
 
 let $search-query := request:get-parameter("search",request:get-attribute("search"))
 let $kwic-width := request:get-parameter("kwic-width",request:get-attribute("kwic-width"))
@@ -40,6 +41,10 @@ let $range := number(request:get-parameter("range", request:get-attribute("range
 let $page := number(request:get-parameter("page", request:get-attribute("page")))
 let $from := number(request:get-parameter("from", request:get-attribute("from")))
 
+let $id := request:get-parameter("id", request:get-attribute("id"))
+let $object := request:get-parameter("object",request:get-attribute("object"))
+let $subject := request:get-parameter("subject",request:get-attribute("subject"))
+
 let $show := request:get-parameter("show", request:get-attribute("show"))
 
 let $config := edwebapi:get-config($app-target)
@@ -51,30 +56,30 @@ let $result :=
     then 
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list-without-filter", 
-            [$app-target, $object-type], 
+            [$app-target, $object-type, $limit], 
             if ($cache = "yes")
             then ()
-            else collection(edwebapi:data-collection($app-target))/*, 
+            else edwebapi:data-collection($app-target), 
             $cache = "no"
         )
     else if ($is-object) 
     then
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list", 
-            [$app-target, $object-type], 
+            [$app-target, $object-type, $limit], 
             if ($cache = "yes")
             then ()
-            else collection(edwebapi:data-collection($app-target))/*, 
+            else edwebapi:data-collection($app-target), 
             $cache = "no"
         )
     else if ($is-relation) 
     then 
         edwebapi:load-map-from-cache(
             "edwebapi:get-relation-list",
-            [$app-target, $object-type], 
+            [$app-target, $object-type, $limit], 
             if ($cache = "yes")
             then ()
-            else collection(edwebapi:data-collection($app-target))/*, 
+            else edwebapi:data-collection($app-target), 
             $cache = "no"
         )
     else $object-type||" isn't defined for '"||$app-target||"'."
@@ -112,4 +117,9 @@ return
             else $array
     else if ($is-object and ($show eq 'filter')) 
     then $result?filter
+    (: Relations :)
+    else if ($show eq 'list' and $subject||"" != "")
+    then $result?list?*[?subject = $subject]
+    else if ($show eq 'list' and $object||"" != "")
+    then $result?list?*[?object = $object]
     else $result

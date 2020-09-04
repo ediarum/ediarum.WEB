@@ -87,10 +87,10 @@ The basic information for an object type defines where to find the objects in th
 
 - `object/@xml:id` ID of the object type.
 - `name` name of the object type. Can be used in the frontend.
-- `collection` a relative path to the collection where to search for objects.
+- `collection` a relative path to the collection or to a resource where to search for objects.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
 - `item/root` XPath expression of the root element of every object.
-- `item/id` XPath expression where to find the ID of an object.
+- `item/id` XPath expression where to find the ID of an object. This is also used as a ID property (see below).
 - `label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one string as parameter: `function($string) { ... }`.
 
 ```xml
@@ -110,6 +110,8 @@ The basic information for an object type defines where to find the objects in th
 ### 3.2 Properties (filters)
 
 Properties are defined within an object definition in a `<filters>` tag and can be used in the frontend as filters.
+
+*Important: The ID is always be included as property and don't has to be defined again.*
 
 Example, where to define a property:
 

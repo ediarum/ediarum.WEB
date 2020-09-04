@@ -10,6 +10,7 @@ declare option output:method "json";
 declare option output:media-type "application/json";
 
 let $app-target := request:get-parameter("app-target", request:get-attribute("app-target"))
+let $limit := request:get-parameter("limit", request:get-attribute("limit"))
 let $cache := request:get-parameter("cache", request:get-attribute("cache"))
 let $search-id := request:get-parameter("search-id", request:get-attribute("search-id"))
 
@@ -26,5 +27,6 @@ return
         $query, 
         $type,
         $slop,
+        $limit,
         $cache
     )
