@@ -512,8 +512,16 @@ declare function edwebapi:eval-filters-for-object(
                 if (ends-with($f/appconf:xpath/string(),')'))
                 then 
                     util:eval-inline($object-xml, $f/appconf:xpath/string())
+                else if (ends-with($f/appconf:xpath/string(),']'))
+                then
+                    util:eval-inline($object-xml, $f/appconf:xpath/string())
                 else
-                    util:eval-inline($object-xml, $f/appconf:xpath/string()||"/normalize-space()")
+                    try {
+                        util:eval-inline($object-xml, $f/appconf:xpath/string()||"/normalize-space()")
+                    }
+                    catch * {
+                        util:eval-inline($object-xml, $f/appconf:xpath/string())
+                    }
         let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
         return 
             map:entry(
