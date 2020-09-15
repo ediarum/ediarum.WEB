@@ -91,7 +91,7 @@ The basic information for an object type defines where to find the objects in th
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
 - `item/root` XPath expression of the root element of every object.
 - `item/id` XPath expression where to find the ID of an object. This is also used as a ID property (see below).
-- `label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one string as parameter: `function($string) { ... }`.
+- `label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one node as parameter: `function($node) { ... }`.
 
 ```xml
 <object xml:id="personen">

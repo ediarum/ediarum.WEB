@@ -491,7 +491,7 @@ declare function edwebapi:eval-filters-for-object(
                 let $relations := 
                     edwebapi:load-map-from-cache(
                         "edwebapi:get-relation-list",
-                        [$app-target, $rel-type-name],
+                        [$app-target, $rel-type-name, ()],
                         $data-collection,
                         false()
                     )
@@ -757,8 +757,6 @@ declare function edwebapi:get-object-list-without-filter(
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
     let $root := $object-def/appconf:item/appconf:root
-    let $label-function := $object-def/appconf:item/appconf:label[@type=('xquery','xpath')]
-    let $object-id := $object-def/appconf:item/appconf:id/string()
     let $data-collection := edwebapi:data-collection($app-target)
     let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root)
     let $count := count($objects-xml)
