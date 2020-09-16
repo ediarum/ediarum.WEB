@@ -573,6 +573,29 @@ declare function edweb:insert-string(
     local:template-get-string($model, $path)
 };
 
+(:~
+ :
+ :)
+declare function edweb:insert-xml-string(
+    $node as node(), 
+    $model as map(*), 
+    $path as xs:string
+) as xs:string? 
+{
+    let $xml := edweb:insert-string($node, $model, $path)
+    return
+        if (starts-with($xml,'<'))
+        then
+            try {
+                parse-xml($xml)
+            }
+            catch * {
+                $xml
+            }
+        else $xml
+};
+
+
 declare function local:template-get-string(
     $model as map(*), 
     $path as xs:string
@@ -1280,7 +1303,7 @@ declare %templates:wrap function edweb:template-show-filters(
     $model as map(*)
 ) as node()* 
 {
-    for $filter in $model?filters?*
+    for $filter in $model?filters?*[?type != "id"]
     let $div :=
         <div data-template="edweb:load-filter" data-template-filter-name="{$filter?id}">
             {$node/*}
