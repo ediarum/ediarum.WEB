@@ -13,10 +13,18 @@ let $limit := request:get-parameter("limit", request:get-attribute("limit"))
 let $cache := request:get-parameter("cache", request:get-attribute("cache"))
 
 let $id := request:get-parameter("id", request:get-attribute("id"))
+let $id-type := request:get-parameter("id-type", request:get-attribute("id-type"))
+
+let $id-type :=
+    if ($id-type||"" = "")
+    then $id
+    else $id-type
+
+(: let $id-type := request:get-parameter("id-type", request:get-attribute("id-type")) :)
 let $all-list := edwebapi:get-all($app-target, $limit, $cache)
 return 
-    if ($id = "all")
+    if ($id-type = "all")
     then
         $all-list
     else
-        map:remove($all-list, "date-time")?*[?filter?($id)||"" != ""]
+        map:remove($all-list, "date-time")?*[?filter?($id-type)||"" != ""]

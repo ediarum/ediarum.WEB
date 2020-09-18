@@ -60,7 +60,9 @@ declare function local:api-routing(
 {
     let $f := function-lookup(xs:QName($function), 3)
     return (
-        if (request:get-parameter("id", request:get-attribute("id"))||"" != "") 
+        if (request:get-parameter("id", request:get-attribute("id"))||"" = "all") 
+        then $f("/api", "api/all-list.xql", $params)
+        else if (request:get-parameter("id-type", request:get-attribute("id-type"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)
         else $f("/api", "api/show-config.xql", $params),
 
@@ -126,21 +128,21 @@ declare function local:api-get-from-pattern(
     $api-path as xs:string
 ) 
 {
-    let $variable-pattern := $edwebcontroller:allowed-pattern-chars
+    let $allowed-pattern-chars := $edwebcontroller:allowed-pattern-chars
     let $path := 
         if (contains($api-path, "?")) 
         then substring-before($api-path, "?") 
         else $api-path
     let $get-params := substring-after($api-path, "?")
     return
-        if (edwebcontroller:path-equals-pattern($path, $api-pattern, $variable-pattern)) 
+        if (edwebcontroller:path-equals-pattern($path, $api-pattern, $allowed-pattern-chars)) 
         then
             let $params := 
                 (
                     for $att in edwebcontroller:read-path-variables(
                         $api-path, 
                         $api-pattern, 
-                        $variable-pattern
+                        $allowed-pattern-chars
                     )
                     let $att-name := $att/@key/string()
                     let $att-value := $att/@value/string()
@@ -685,7 +687,7 @@ declare function edwebcontroller:redirect-to-id(
         ,
         let $base-url := substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                 ||edwebcontroller:get-exist-controller()
-        let $link-list := edwebcontroller:api-get("/api?id="||$id-type)
+        let $link-list := edwebcontroller:api-get("/api?id-type="||$id-type)
         let $id := substring-after(edwebcontroller:get-exist-path(), $starts-with)
         let $object := $link-list[?filter?($id-type) = $id][1]
         let $object-type := $object?object-type

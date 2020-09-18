@@ -580,7 +580,7 @@ declare function edweb:insert-xml-string(
     $node as node(), 
     $model as map(*), 
     $path as xs:string
-) as xs:string? 
+) 
 {
     let $xml := edweb:insert-string($node, $model, $path)
     return
@@ -1011,7 +1011,7 @@ declare function edweb:view-expand-links(
     $error-function as function(*)?
 ) as node()
 {
-    let $link-list := edwebcontroller:api-get("/api?id=all")
+    let $link-list := edwebcontroller:api-get("/api?id-type=all")
     let $error-f := 
         if ($error-function instance of function(*)) 
         then $error-function
@@ -1349,7 +1349,7 @@ declare %templates:wrap function edweb:template-switch(
     $model as map(*)
 ) 
 {
-    let $switch := templates:process($node/*:switch, $model)/string()
+    let $switch := templates:process($node/*:switch, $model)/normalize-space()
     return
         if ($switch = ($node/*/@case/string())) 
         then templates:process($node/*[@case = $switch], $model)
