@@ -342,12 +342,11 @@ declare function edwebapi:get-object(
         else error(xs:QName("edwebapi:get-object-001"), "Can't find "||$root||"["||$find-expression
             ||"] in collection "||$collection||" in "||$data-collection)
     let $views := 
-        for $view in $object-def//appconf:views/appconf:view
+        for $view at $pos in $object-def//appconf:views/appconf:view
         let $id := $view/@id/string()
         let $xslt := $view/appconf:xslt/string()
         let $label := $view/appconf:label/string()
         let $params := $view/appconf:xslt/@params/string()||""
-        order by $id
         return
             map:entry (
                 $id,
@@ -355,7 +354,8 @@ declare function edwebapi:get-object(
                     map:entry("id", $id),
                     map:entry("xslt", $xslt),
                     map:entry("label", $label),
-                    map:entry("params", $params)
+                    map:entry("params", $params),
+                    map:entry("n", $pos)
                 )) 
             )
     let $object-map := edwebapi:eval-base-data-for-object($object-def, $item)

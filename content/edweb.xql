@@ -24,6 +24,8 @@ declare variable $edweb:cache-collection := "/db/apps/ediarum.web/cache";
 declare variable $edweb:projects-collection := "/db/projects";
 (: See also $edwebapi:param-separator. :)
 declare variable $edweb:param-separator := ";"; 
+declare variable $edweb:view-uri-label-separator := ":l:"; 
+declare variable $edweb:view-view-separator := "::v::"; 
 
 declare function functx:get-matches-and-non-matches($string as xs:string?, $regex as xs:string) as element()* { let $iomf := functx:index-of-match-first($string, $regex) return if (empty($iomf)) then <non-match>{$string}</non-match> else if ($iomf > 1) then (<non-match>{substring($string,1,$iomf - 1)}</non-match>, functx:get-matches-and-non-matches( substring($string,$iomf),$regex)) else let $length := string-length($string) - string-length(functx:replace-first($string, $regex,'')) return (<match>{substring($string,1,$length)}</match>, if (string-length($string) > $length) then functx:get-matches-and-non-matches(substring($string,$length + 1),$regex) else ()) };
 declare function functx:index-of-match-first($arg as xs:string?, $pattern as xs:string) as xs:integer? { if (matches($arg,$pattern)) then string-length(tokenize($arg, $pattern)[1]) + 1 else () };
@@ -473,11 +475,11 @@ declare %templates:wrap function edweb:add-view-list(
     $selected as xs:string
 ) as node()* 
 {
-    let $view-array := tokenize($views, "::")
+    let $view-array := tokenize($views, $edweb:view-view-separator)
     let $view-list :=
         for $view in $view-array
-        let $url := substring-before($view, ":")
-        let $label := substring-after($view, ":")
+        let $url := substring-before($view, $edweb:view-uri-label-separator)
+        let $label := substring-after($view, $edweb:view-uri-label-separator)
         let $is-active := 
             if ($url = $selected) 
             then "active"
@@ -1365,21 +1367,27 @@ declare %templates:wrap function edweb:template-switch(
  :)
 declare function edweb:template-transform-current(
     $node as node(), 
-    $model as map(*), 
-    $resource as xs:string*
+    $model as map(*)
 ) as node()* 
 {
     let $view := request:get-attribute("view")
     let $xsl-resource := 
-        if ($resource) 
-        then $resource 
-        else if ($view != "")
+        if ($view != "")
         then $model?views?($view)?xslt
-        else $model?views?*[1]?xslt
+        else $model?views?*[?n=1]?xslt
     return
-        if (empty($xsl-resource))
-        then <div>Bitte Stylesheet angeben.</div>
-        else
+        edweb:template-transform-current($node, $model, $xsl-resource)
+};
+
+declare function edweb:template-transform-current(
+    $node as node(), 
+    $model as map(*), 
+    $xsl-resource as xs:string
+) as node()* 
+{
+    if (empty($xsl-resource))
+    then <div>Bitte Stylesheet angeben.</div>
+    else
     let $path := edwebcontroller:get-exist-root()||edwebcontroller:get-exist-controller()||"/"||$xsl-resource
     let $stylesheet := 
         if (doc($path)) 
@@ -1479,14 +1487,17 @@ declare function local:get-object-views(
     let $uri :=
         if (contains($uri, "/view/"))
         then
+            (: /texts/t0001/view/default/my/path  --> /texts/t0001/ || my/path || view :)
             substring-before($uri, "/view/")||"/"
             ||substring-after(substring-after($uri, "/view/"), "/")||"view"
         else $uri||"/view"
     let $views :=
         for $view in $model?views?*
         let $id := $view?id
+        let $n := $view?n
         let $label := $view?label
         let $uri := $uri||"/"||$id
-        return $uri||":"||$label
-    return string-join($views, "::")
+        order by $n
+        return $uri||$edweb:view-uri-label-separator||$label
+    return string-join($views, $edweb:view-view-separator)
 };
