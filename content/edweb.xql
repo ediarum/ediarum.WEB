@@ -1367,27 +1367,21 @@ declare %templates:wrap function edweb:template-switch(
  :)
 declare function edweb:template-transform-current(
     $node as node(), 
-    $model as map(*)
+    $model as map(*), 
+    $resource as xs:string*
 ) as node()* 
 {
     let $view := request:get-attribute("view")
     let $xsl-resource := 
-        if ($view != "")
+        if ($resource) 
+        then $resource 
+        else if ($view != "")
         then $model?views?($view)?xslt
-        else $model?views?*[?n=1]?xslt
+        else $model?views?*[1]?xslt
     return
-        edweb:template-transform-current($node, $model, $xsl-resource)
-};
-
-declare function edweb:template-transform-current(
-    $node as node(), 
-    $model as map(*), 
-    $xsl-resource as xs:string
-) as node()* 
-{
-    if (empty($xsl-resource))
-    then <div>Bitte Stylesheet angeben.</div>
-    else
+        if (empty($xsl-resource))
+        then <div>Bitte Stylesheet angeben.</div>
+        else
     let $path := edwebcontroller:get-exist-root()||edwebcontroller:get-exist-controller()||"/"||$xsl-resource
     let $stylesheet := 
         if (doc($path)) 

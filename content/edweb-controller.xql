@@ -101,7 +101,17 @@ declare function edwebcontroller:api-get(
 ) 
 {
     try {
-        (: let $project := request:set-attribute("project", edwebcontroller:get-project()) :)
+        (: let $log := console:log("Request: "||$api-path) :)
+        let $store-attributes := 
+            for $att in request:attribute-names()
+            let $value := request:get-attribute($att)
+            where not(contains($att, "exist"))
+            return (
+                (: console:log("Before: "||$att||":"||$value), :)
+                map:entry($att, $value),
+    	        request:set-attribute($att, "")
+            )
+        let $store-attributes := map:merge( $store-attributes )
         let $app-target := 
             request:set-attribute(
                 "app-target", 
@@ -113,6 +123,11 @@ declare function edwebcontroller:api-get(
             return 
                 request:set-attribute(substring-before($param, "="), substring-after($param, "="))
         let $result := local:api-routing("local:api-get-from-pattern", $api-path)
+        let $restore-attributes := 
+            map:for-each($store-attributes, function ($key, $value) {
+                (: console:log("After: "||$key||":"||$value), :)
+                request:set-attribute($key, $value)
+            })
         return $result
     } catch * {
         error(xs:QName("edwebcontroller:api-get-001"), "Error with the api request: "||$api-path)
