@@ -1377,7 +1377,7 @@ declare function edweb:template-transform-current(
         then $resource 
         else if ($view != "")
         then $model?views?($view)?xslt
-        else $model?views?*[1]?xslt
+        else $model?views?*[?n=1]?xslt
     return
         if (empty($xsl-resource))
         then <div>Bitte Stylesheet angeben.</div>
