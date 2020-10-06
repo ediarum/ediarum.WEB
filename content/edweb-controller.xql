@@ -101,7 +101,7 @@ declare function edwebcontroller:api-get(
 ) 
 {
     try {
-        (: let $log := console:log("Request: "||$api-path) :)
+        let $log := console:log("api-get","Request: "||$api-path)
         let $store-attributes := 
             for $att in request:attribute-names()
             let $value := request:get-attribute($att)
