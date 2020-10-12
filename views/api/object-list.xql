@@ -57,30 +57,27 @@ let $result :=
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list-without-filter", 
             [$app-target, $object-type, $limit], 
-            if ($cache = "yes")
-            then ()
-            else edwebapi:data-collection($app-target), 
-            $cache = "no"
+            edwebapi:data-collection($app-target),
+            $cache = "no", 
+            $cache = "reset"
         )
     else if ($is-object) 
     then
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list", 
             [$app-target, $object-type, $limit], 
-            if ($cache = "yes")
-            then ()
-            else edwebapi:data-collection($app-target), 
-            $cache = "no"
+            edwebapi:data-collection($app-target), 
+            $cache = "no",
+            $cache = "reset"
         )
     else if ($is-relation) 
     then 
         edwebapi:load-map-from-cache(
             "edwebapi:get-relation-list",
             [$app-target, $object-type, $limit], 
-            if ($cache = "yes")
-            then ()
-            else edwebapi:data-collection($app-target), 
-            $cache = "no"
+            edwebapi:data-collection($app-target), 
+            $cache = "no",
+            $cache = "reset"
         )
     else $object-type||" isn't defined for '"||$app-target||"'."
 return

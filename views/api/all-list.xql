@@ -21,10 +21,11 @@ let $id-type :=
     else $id-type
 
 (: let $id-type := request:get-parameter("id-type", request:get-attribute("id-type")) :)
-let $all-list := edwebapi:get-all($app-target, $limit, $cache)
 return 
     if ($id-type = "all")
     then
-        $all-list
+        let $all-list := edwebapi:get-all($app-target, $limit, $cache, false())
+        return $all-list
     else
-        map:remove($all-list, "date-time")?*[?filter?($id-type)||"" != ""]
+        let $all-list := edwebapi:get-all($app-target, $limit, $cache, true())
+        return map:remove($all-list, "date-time")?*[?filter?($id-type)||"" != ""]

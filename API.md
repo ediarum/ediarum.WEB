@@ -19,6 +19,7 @@
     - [5.2 Examples](#52-examples)
     - [5.3 Result](#53-result)
       - [JSON output: `/api/search/<search-id>?q=<query>`](#json-output-apisearchsearch-idqquery)
+  - [6. Caching](#6-caching)
 
 ## 1. APPCONF
 
@@ -253,3 +254,15 @@ Results in:
 
 ```json
 ```
+
+## 6. Caching
+
+Due to performance some of the API calls are cached. So calls like `/api/<object-type>`
+result in a cache for all entities of `<object-type>` and their properties.
+
+If data is changed and the cache can be rebuild by adding a GET parameter
+to the above API calls:
+
+- `cache`. Possible values are:
+  - `no` cache is rebuild if newer data exists
+  - `reset` cache is always rebuild (exception: cache is not rebuild if it is newer than 1 minute)

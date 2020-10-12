@@ -93,21 +93,31 @@ declare function edwebapi:filter-list(
 declare function edwebapi:get-all(
     $app-target as xs:string,
     $limit as xs:string?,
-    $cache as xs:string
+    $cache as xs:string,
+    $with-filter as xs:boolean
 ) 
 {
     let $object-types := edwebapi:get-config($app-target)//appconf:object/@xml:id
     let $found-objects :=
         for $object-type in $object-types
         let $map :=
-            edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list", 
-                [$app-target, $object-type, $limit], 
-                if ($cache = "yes")
-                then ()
-                else edwebapi:data-collection($app-target), 
-                $cache = "no"
-            )
+            if ($with-filter)
+            then
+                edwebapi:load-map-from-cache(
+                    "edwebapi:get-object-list", 
+                    [$app-target, $object-type, $limit], 
+                    edwebapi:data-collection($app-target),
+                    $cache = "no", 
+                    $cache = "reset"
+                )
+            else
+                edwebapi:load-map-from-cache(
+                    "edwebapi:get-object-list-without-filter", 
+                    [$app-target, $object-type, $limit], 
+                    edwebapi:data-collection($app-target),
+                    $cache = "no", 
+                    $cache = "reset"
+                )
         return $map?list
     return
         map:merge((map:entry("date-time", current-dateTime()), $found-objects))
@@ -211,7 +221,8 @@ declare function edwebapi:load-map-from-cache(
     $function-name as xs:string, 
     $params as array(*), 
     $data-collection as xs:string?, 
-    $reload as xs:boolean?
+    $soft-reload as xs:boolean?,
+    $hard-reload as xs:boolean?
 ) as map(*) 
 {
     let $node-set as node()* := 
@@ -233,27 +244,28 @@ declare function edwebapi:load-map-from-cache(
     let $cache-file-name := substring-after($function-name, ":")||"-"
         ||translate(string-join($params?*[.!='cache'], "-"),'/','__')||".json"
     let $load-cache := util:binary-doc($cache-collection||"/"||$cache-file-name)
-    let $load-from-cache := exists($load-cache)
+    let $cache-exists := exists($load-cache)
     let $load-map := 
-        if($load-from-cache) 
+        if($cache-exists) 
         then parse-json(util:binary-to-string($load-cache))
         else false()
     let $current-date-time := current-dateTime()            
     let $cache-is-new :=
-        if ($load-from-cache)
+        if ($cache-exists)
         then ($current-date-time < xs:dateTime($load-map?date-time) + xs:dayTimeDuration("PT1M"))
         else false()
-    let $load-from-cache := $load-from-cache and not($reload)
     let $cache-is-up-to-date :=
-        if ($load-from-cache and count($node-set)=0)
+        if ($cache-exists and count($node-set)=0)
         then true()
-        else if ($load-from-cache)
+        else if ($cache-exists and $soft-reload)
         then
             let $since := $load-map?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
             return count($last-modified)=0
+        else if ($cache-exists)
+        then true()
         else false()
-    let $load-from-cache := ($load-from-cache and $cache-is-up-to-date) or $cache-is-new
+    let $load-from-cache := $cache-is-new or (not($hard-reload) and $cache-is-up-to-date)
     let $apply-and-store :=
         if ($load-from-cache)
         then ()
@@ -470,6 +482,7 @@ declare function edwebapi:eval-filters-for-object(
     $object-xml as node()
 ) as map(*)
 {
+    let $cache := ""
     let $filters := $object-def/appconf:filters/appconf:filter
     let $data-collection := edwebapi:data-collection($app-target)
     let $filter-values :=
@@ -493,7 +506,8 @@ declare function edwebapi:eval-filters-for-object(
                         "edwebapi:get-relation-list",
                         [$app-target, $rel-type-name, ()],
                         $data-collection,
-                        false()
+                        $cache = "no",
+                        $cache = "reset"
                     )
                 let $items := $relations?list?*[?($rel-perspective) = $object?id]
                 for $i in $items return
@@ -856,10 +870,9 @@ declare function edwebapi:get-search-results(
            edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list", 
                 [$app-target, $object-type, $limit], 
-                if ($cache = "yes")
-                then ()
-                else edwebapi:data-collection($app-target), 
-                $cache = "no"
+                edwebapi:data-collection($app-target),
+                $cache = "no",
+                $cache = "reset"
             )
         return 
             edwebapi:get-object-list-with-search(
@@ -985,6 +998,7 @@ declare function edwebapi:get-relation-list(
     $limit as xs:string?
 ) as map(*) 
 {
+    let $cache := ""
     let $config := edwebapi:get-config($app-target)
     let $relation-type := $config//appconf:relation[@xml:id=$relation-type-name]
     let $subject-type := $relation-type/@subject/string()
@@ -1005,8 +1019,9 @@ declare function edwebapi:get-relation-list(
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list-without-filter", 
                 [$app-target, $object-type, $limit], 
-                (), 
-                false()
+                edwebapi:data-collection($app-target), 
+                $cache = "no",
+                $cache = "reset"
             )
         return $map?list?* (: "list-without-filter" :)
 
@@ -1015,8 +1030,9 @@ declare function edwebapi:get-relation-list(
             edwebapi:load-map-from-cache(
                 "edwebapi:get-object-list-without-filter", 
                 [$app-target, $subject-type, $limit], 
-                (), 
-                false()
+                edwebapi:data-collection($app-target), 
+                $cache = "no",
+                $cache = "reset"
             )
         return $map?list?* (: "list-without-filter" :)
     let $data-collection := edwebapi:data-collection($app-target)
