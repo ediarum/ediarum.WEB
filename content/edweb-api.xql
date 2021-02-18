@@ -1048,6 +1048,7 @@ declare function edwebapi:get-relation-list(
         return 
             map:merge((
                 map:entry("xml", $rel),
+                map:entry("internal-node-id", util:node-id($rel)),
                 map:entry("absolute-resource-id", util:absolute-resource-id($rel))
             ))
 

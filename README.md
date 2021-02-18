@@ -23,13 +23,23 @@ Thanks to:
 ediarum.WEB is an library for eXist-db (http://www.exist-db.org). It is tested with eXist-db versions 3.2.0, 4.6.1, and 5.2.0. 
 With the help of ediarum.WEB, developers can build an entire website or just a backend used for XML based digital editions. The different functions of the library support routing, api generation, and frontend templating.
 
+Features of ediarum.WEB are (see also [here](FEATURES.md)):
+
+- Autmatic link generation
+- Referer and highlighting
+- Preconfigured layout
+
 ## Documentation
 
-An introduction how to use ediarum.WEB is available at https://www.ediarum.org/docs/ediarum-web-step-by-step/index.html.
+An **introduction** how to use ediarum.WEB is available at https://www.ediarum.org/docs/ediarum-web-step-by-step/index.html.
 
-For the structure of the `appconf.xml` see [APPCONF.md](APPCONF.md).
+For the structure of the **manifest file** `appconf.xml` see [APPCONF.md](APPCONF.md).
 
-For the definition of the API calls see [API.md](API.md).
+For the definition of the **API** calls see [API.md](API.md).
+
+The use and setup of **features** is documented at [FEATURES.md](FEATURES.md).
+
+An overview of the **libraries** is given at [LIBRARIES.md](LIBRARIES.md).
 
 ## Development
 

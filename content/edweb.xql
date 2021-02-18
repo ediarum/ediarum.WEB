@@ -1027,6 +1027,7 @@ declare function edweb:view-expand-links(
     return local:view-expand-links($node, $link-list, $error-f)
 };
 
+
 (:~
  :
  :)
@@ -1055,10 +1056,16 @@ declare function local:view-expand-links(
             else if (starts-with($attribute, "$id/")) 
             then
                 try {
-                    substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
-                    ||edwebcontroller:get-exist-controller()||"/"
-                    ||$link-list?(substring-after($attribute, "$id/"))?object-type
-                    ||"/"||substring-after($attribute, "$id/")
+                    let $current-id := request:get-attribute("id")
+                    let $set-referer :=
+                        if ($current-id||"" != "")
+                        then "?ref="||$current-id
+                        else ""
+                    return
+                        substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                        ||edwebcontroller:get-exist-controller()||"/"
+                        ||$link-list?(substring-after($attribute, "$id/"))?object-type
+                        ||"/"||substring-after($attribute, "$id/")||$set-referer
                 } 
                 catch * {
                     $error-function($attribute)
@@ -1070,8 +1077,19 @@ declare function local:view-expand-links(
                 element { node-name($node) } {
                     attribute href { $expanded },
                     $node/@* except $node/@href, 
-                    for $child in $node/node() 
-                    return local:view-expand-links($child, $link-list, $error-function)
+                    let $href-id := substring-after($attribute, "$id/") 
+                    let $referer := request:get-parameter("ref", request:get-attribute("ref"))
+                    return
+                    if ($href-id=$referer)
+                    then
+                        element span {
+                            attribute class { "referer" },
+                            for $child in $node/node() 
+                            return local:view-expand-links($child, $link-list, $error-function)
+                        }
+                    else
+                        for $child in $node/node() 
+                        return local:view-expand-links($child, $link-list, $error-function)
                 }
             else if ($node/@src)
             then

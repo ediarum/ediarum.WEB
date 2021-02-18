@@ -9,6 +9,7 @@
     - [3.2 Examples](#32-examples)
     - [3.3 Results](#33-results)
       - [Default `/api/<object-type>`](#default-apiobject-type)
+      - [Default `/api/<relation-type>`](#default-apirelation-type)
   - [4. Get object](#4-get-object)
     - [4.1 GET-Parameters](#41-get-parameters)
     - [4.2 Examples](#42-examples)
@@ -121,6 +122,24 @@ The following parameters are for relation lists:
 - `?type` equals "object"
 - `?results-found` number of all objects
 - `?results-shown` number of objects in `list`. Equals to `results-found` if equal or lower then the `limit` parameter.
+
+#### Default `/api/<relation-type>`
+
+- `?date-time` stamp of caching
+- `?list` of relations
+- `?list?(#position)` contains the following values:
+  - `?absolute-resource-id` of relation xml
+  - `?internal-node-id` of relation xml
+  - `?object` ID of relation
+  - `?predicate` value of relation
+  - `?subject` ID of relation
+  - `?xml` of relation
+- `?name` of relation
+- `?object-type` of relation
+- `?results-found` number of relations
+- `?results-shown` number of relations in `list`. Equals to `results-found` if equal or lower then the `limit`parameter.
+- `?subject-type` of relation
+- `?type` equals "relations"
 
 ## 4. Get object
 
