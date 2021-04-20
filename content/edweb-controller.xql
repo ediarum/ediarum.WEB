@@ -260,6 +260,23 @@ declare
     %test:assertEquals(
         '<dispatch xmlns="http://exist.sourceforge.net/NS/exist"><forward url="/ediarum.web/views/api/object-json.xql"><set-attribute name="object-type" value="handschriften"/><set-attribute name="object-id" value="diktyon-71816"/></forward></dispatch>'
     )
+
+    %test:args(
+        "/api/<object-type>/<object-id>",
+        "api/object-json.xql",
+        "true",
+        "/api/urn:cts:myproject/my-file:with.dot"
+    )
+    %test:assertEquals(
+        '<dispatch xmlns="http://exist.sourceforge.net/NS/exist"><forward url="/ediarum.web/views/api/object-json.xql"><set-attribute name="object-type" value="urn:cts:myproject"/><set-attribute name="object-id" value="my-file:with.dot"/></forward></dispatch>'
+    )
+    (: TODO: weiteren Zugang legen nach DTS Spezi :)
+    (: %test:args(
+        "/api/document/?id=<object-id>",
+        "api/object-json.xql",
+        "true",
+        "/api/document/?id=https://papyri.info/ddbdp/bgu;11;2029/source"
+    ) :)
 function local:generate-api-path(
     $path-pattern as xs:string, 
     $view as xs:string, 
