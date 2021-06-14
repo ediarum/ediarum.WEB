@@ -261,10 +261,11 @@ declare function edweb:add-link-to-prev-object(
 ) 
 {
     let $labelled-ids := $model?labelled[?label-pos=1]?id
+    let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
         if ($labelled-ids[$position -1]) 
-        then <a href="$id/{$labelled-ids[$position -1]}" class="nav-link"><i class="fa fa-arrow-left"></i></a>
+        then <a href="$base-url/{$object-type}/{$labelled-ids[$position -1]}" class="nav-link"><i class="fa fa-arrow-left"></i></a>
         else ()
 };
 
@@ -277,10 +278,11 @@ declare function edweb:add-link-to-next-object(
 ) 
 {
     let $labelled-ids := $model?labelled[?label-pos=1]?id
+    let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
         if ($labelled-ids[$position +1]) 
-        then <a href="$id/{$labelled-ids[$position +1]}" class="nav-link"><i class="fa fa-arrow-right"></i></a>
+        then <a href="$base-url/{$object-type}/{$labelled-ids[$position +1]}" class="nav-link"><i class="fa fa-arrow-right"></i></a>
         else ()
 };
 
@@ -994,7 +996,13 @@ declare function edweb:load-relations(
     let $subject-relations := edweb:load-relations-for-subject($node, $model, $relation)
     let $object-relations := edweb:load-relations-for-object($node, $model, $relation)
     let $all-relations := 
-        map:entry("relations", ($subject-relations?relations?*, $object-relations?relations?*))
+        if (not(empty($subject-relations?relations)) and not(empty($object-relations?relations)))
+        then map:entry("relations", ($subject-relations?relations?*, $object-relations?relations?*))
+        else if (not(empty($subject-relations?relations)))
+        then $subject-relations
+        else if (not(empty($object-relations?relations)))
+        then $object-relations
+        else ()
     return map:merge(($all-relations, $model))
 };
 
@@ -1307,10 +1315,9 @@ declare function edweb:template-detail-link(
     $from as xs:string
 ) as node() 
 {
-    let $object-type := $model?($from)?("object-type")
     let $id := $model?($from)?("id")
     return
-        <a href="$base-url/{$object-type}/{$id}">
+        <a href="$id/{$id}">
             {templates:process($node/node(), $model)}
         </a>
 };
