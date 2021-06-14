@@ -20,7 +20,6 @@ declare namespace test="http://exist-db.org/xquery/xqsuite";
 declare namespace http="http://expath.org/ns/http-client";
 
 declare variable $edweb:controller := "/ediarum.web";
-declare variable $edweb:cache-collection := "/db/apps/ediarum.web/cache";
 declare variable $edweb:projects-collection := "/db/projects";
 (: See also $edwebapi:param-separator. :)
 declare variable $edweb:param-separator := ";"; 
