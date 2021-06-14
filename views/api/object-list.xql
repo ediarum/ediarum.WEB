@@ -57,7 +57,7 @@ let $result :=
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list-without-filter", 
             [$app-target, $object-type, $limit], 
-            edwebapi:data-collection($app-target),
+            $app-target,
             $cache = "no", 
             $cache = "reset"
         )
@@ -66,7 +66,7 @@ let $result :=
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list", 
             [$app-target, $object-type, $limit], 
-            edwebapi:data-collection($app-target), 
+            $app-target, 
             $cache = "no",
             $cache = "reset"
         )
@@ -75,7 +75,7 @@ let $result :=
         edwebapi:load-map-from-cache(
             "edwebapi:get-relation-list",
             [$app-target, $object-type, $limit], 
-            edwebapi:data-collection($app-target), 
+            $app-target, 
             $cache = "no",
             $cache = "reset"
         )
