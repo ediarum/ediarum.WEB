@@ -13,8 +13,11 @@
       - [Relation property](#relation-property)
     - [3.3 Views / XSLTs](#33-views--xslts)
       - [Base information](#base-information-1)
-    - [3.4 Search index](#34-search-index)
+    - [3.4 Parts and reference points](#34-parts-and-reference-points)
+      - [Main definition](#main-definition)
       - [Base information](#base-information-2)
+    - [3.5 Search index](#35-search-index)
+      - [Base information](#base-information-3)
   - [4. Definition of a relation](#4-definition-of-a-relation)
     - [4.1 Base information](#41-base-information)
     - [4.2 Subject and object condition](#42-subject-and-object-condition)
@@ -128,7 +131,7 @@ Example, where to define a property:
 
 #### Base information
 
-Alle property definitions share the following structure:
+All property definitions share the following structure:
 
 - `filter/@xml:id` the ID of the property.
 - `name` the name of the property which can be shown as filter title in the frontend.
@@ -273,7 +276,67 @@ The basic information for a view defines where to find the XSLT for the transfor
 - [edweb:add-view-nav ($node, $model)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L498-L520)
 - [edweb:add-view-nav ($node, $model, $views, $selected)](https://github.com/ediarum/ediarum.WEB/blob/a741f090864a41239f8a1c8c049fa2e3cd76cfdb/content/edweb.xql#L522-L548)
 
-### 3.4 Search index
+### 3.4 Parts and reference points
+
+It can be defined how to reference parts of an object. By this, the parts can be referenced and retrieved. Different types of object parts can be defined, eg. sections, pages, and anchors. Nesting of parts is possible, eg. pages and lines.
+
+Example, where to define the parts:
+
+```xml
+<object>
+    ...
+    <parts separator="" prefix="">
+        <part>...</part>
+        <part>...</part>
+        ...
+    </parts>
+</object>
+```
+
+The following attributes must be declared within `<parts>`:
+
+- `parts/@separator` defines how to parts and subparts in case of nesting must be separated, see examples, e.g. `.`: `34.12`.
+- `prefix` defines how to separate the namespaces (`starts-with`) from the value, e.g. `-`: `page-23`.
+
+Examples:
+
+How to define page and linebreaks aa reference points:
+
+```xml
+<parts separator="." prefix="">
+    <part>...</part>
+    <part>...</part>
+</parts>
+```
+
+#### Main definition
+
+#### Base information
+
+All part definitions share the following structure:
+
+- `part/@xml:id` the ID of the part. *Important: The ID values must only contain literals and/or numbers.*
+- `part/@starts-with` optional prefix which the ID values must match, e.g. `line-`
+- `root` 
+- `id` *Important: The ID values must only contain literals and/or numbers.*
+- zero or more `part` definitions of nested parts
+
+Example:
+
+Reference an TEI document by pagebreaks and linebreaks:
+
+```xml
+<part xml:id="page">
+    <root>tei:pb</root>
+    <id>@n</id>
+    <part xml:id="line">
+        <root>tei:lb</root>
+        <id>@n</id>
+    </part>
+</part>
+```
+
+### 3.5 Search index
 
 For each object type it is possible to define an search index.
 

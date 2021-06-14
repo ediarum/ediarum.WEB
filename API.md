@@ -6,21 +6,26 @@
     - [2.1 GET-Parameters](#21-get-parameters)
   - [3. List of objects or relations](#3-list-of-objects-or-relations)
     - [3.1 GET-Parameters](#31-get-parameters)
-    - [3.2 Examples](#32-examples)
-    - [3.3 Results](#33-results)
+    - [3.2 Results](#32-results)
       - [Default `/api/<object-type>`](#default-apiobject-type)
       - [Default `/api/<relation-type>`](#default-apirelation-type)
+    - [3.3 Examples](#33-examples)
   - [4. Get object](#4-get-object)
     - [4.1 GET-Parameters](#41-get-parameters)
-    - [4.2 Examples](#42-examples)
-    - [4.3 Results](#43-results)
+    - [4.2 Results](#42-results)
       - [JSON output: `/api/<object-type>/<object-id>`](#json-output-apiobject-typeobject-id)
-  - [5. Searching](#5-searching)
+    - [4.3 Examples](#43-examples)
+  - [5. Get part of an object](#5-get-part-of-an-object)
     - [5.1 GET-Parameters](#51-get-parameters)
-    - [5.2 Examples](#52-examples)
-    - [5.3 Result](#53-result)
+    - [5.2 Results](#52-results)
+      - [JSON output](#json-output)
+    - [5.3 Examples](#53-examples)
+  - [6. Searching](#6-searching)
+    - [6.1 GET-Parameters](#61-get-parameters)
+    - [6.2 Result](#62-result)
       - [JSON output: `/api/search/<search-id>?q=<query>`](#json-output-apisearchsearch-idqquery)
-  - [6. Caching](#6-caching)
+    - [6.3 Examples](#63-examples)
+  - [7. Caching](#7-caching)
 
 ## 1. APPCONF
 
@@ -37,11 +42,11 @@ Returns a JSON list with all object IDs to identify by ID which object type a sp
 ### 2.1 GET-Parameters
 
 - `id` must be equal to `all`.
-- optional `limit` defines how many objects of each type are retrieved, 
+- optional `limit` defines how many objects of each type are retrieved,
 
 ## 3. List of objects or relations
 
-Returns a list of all items of an object type or relation type as JSON. 
+Returns a list of all items of an object type or relation type as JSON.
 
 *Attention: Because of performance issues only 10'000 entries are returned.
 If more are requested please use the `limit` parameter.*
@@ -66,7 +71,7 @@ The following parameters are only for object lists not for relation lists:
   - `regex` for one or more words (separated by space) using regular expressions
   - `phrase` for a query of multiple words. With `slop` the distance can be defined (default is 1).
   - `lucene` for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
-- `show` possible values are: 
+- `show` possible values are:
   - `all` show all objects
   - `compact` show all objects but in compact form, i.e. without properties
   - `filter` show the filter definitions
@@ -82,14 +87,7 @@ The following parameters are for relation lists:
   - `list` show relation items matching filter criteria
   - empty show all relation items
 
-### 3.2 Examples
-
-- manuscript list filtered by repository: `/api/ms?show=list&city=Berlin&repository=Staatsbibliothek`
-- first twenty entries of persons: `/api/persons?show=list&order=label&range=20&page=1`
-- show list of person-manuscript relations: `/api/person-manuscript`
-- show letters from berlin containing the word 'Wetter': `/api/letters?show=list&place=Berlin&search=Wetter`
-
-### 3.3 Results
+### 3.2 Results
 
 #### Default `/api/<object-type>`
 
@@ -141,6 +139,13 @@ The following parameters are for relation lists:
 - `?subject-type` of relation
 - `?type` equals "relations"
 
+### 3.3 Examples
+
+- manuscript list filtered by repository: `/api/ms?show=list&city=Berlin&repository=Staatsbibliothek`
+- first twenty entries of persons: `/api/persons?show=list&order=label&range=20&page=1`
+- show list of person-manuscript relations: `/api/person-manuscript`
+- show letters from berlin containing the word 'Wetter': `/api/letters?show=list&place=Berlin&search=Wetter`
+
 ## 4. Get object
 
 Returns a information of a single object.
@@ -157,16 +162,11 @@ Returns a information of a single object.
   - if not set: some object information is retrieved as JSON
 - `view` defines which view (see [APPCONF.md](APPCONF.md)) is used to transform the object. The result is retrieved. To be used with `output`.
 
-### 4.2 Examples
-
-- XML representation: `/api/persons/p123456?output=xml`
-- XML output with special view: `/api/letters/l123456?output=xml&view=my_view`
-
-### 4.3 Results
+### 4.2 Results
 
 #### JSON output: `/api/<object-type>/<object-id>`
 
-- `?absolute-resource-id` eXist-db specific id of the ressource containing the object 
+- `?absolute-resource-id` eXist-db specific id of the ressource containing the object
 - `?filter` values of object, see list of objects above.
 - `?id` of object
 - `?label` of object
@@ -186,12 +186,13 @@ Returns a information of a single object.
   - `?xpath` where to find the inner-nav items (XPath)
 - `?object-type` of object
 - `?parts` of object if defined and found
-- `?parts?("part-id)` contains the following values:
+- `?parts?("part-id")` contains the following values:
   - `?depends` on which other part definitions
   - `?id` definition of part id
   - `?path` full path to part
   - `?root` definition of part root
   - `?xmlid` of part
+  - `?("part-id")` contains definition of nested parts
 - `?views` contains the defined views for the object
 - `?views?("view-id")` contains the following values:
   - `?id` of view
@@ -199,45 +200,74 @@ Returns a information of a single object.
   - `?params` defined parameters for the view
   - `?xslt` relative path to view xslt
 
-**Example**
+### 4.3 Examples
 
-JSON information of a person:
+- XML representation: `/api/persons/p123456?output=xml`
+- XML output with special view: `/api/letters/l123456?output=xml&view=my_view`
+- JSON information of a person
+  `/api/person/p123456`
+  results in:
 
-`/api/person/p123456`
-
-Results in:
-
-```json
-{
-  "absolute-resource-id" : 2869038157266,
-  "label" : "Homer",
-  "id" : "person123456",
-  "inner-nav" : { },
-  "parts" : { },
-  "views" : {
-    "default" : {
-      "xslt" : "resources/xslt/person-details.xsl",
-      "params" : "",
-      "label" : "Details",
-      "id" : "default"
-    },
-    "metadata" : {
-      "xslt" : "resources/xslt/person-metadata.xsl",
-      "params" : "",
-      "label" : "Metadata",
-      "id" : "metadata"
+  ```json
+  {
+    "absolute-resource-id" : 2869038157266,
+    "label" : "Homer",
+    "id" : "person123456",
+    "inner-nav" : { },
+    "parts" : { },
+    "views" : {
+      "default" : {
+        "xslt" : "resources/xslt/person-details.xsl",
+        "params" : "",
+        "label" : "Details",
+        "id" : "default"
+      },
+      "metadata" : {
+        "xslt" : "resources/xslt/person-metadata.xsl",
+        "params" : "",
+        "label" : "Metadata",
+        "id" : "metadata"
+      }
     }
   }
-}
-```
+  ```
 
-## 5. Searching
+## 5. Get part of an object
+
+Returns a part of a single object as xml.
+
+`/api/<object-type>/<object-id>/<object-part>`
+
+### 5.1 GET-Parameters
+
+No parameters are available.
+
+### 5.2 Results
+
+#### JSON output
+
+
+### 5.3 Examples
+
+- A passage within a text: `/api/persons/p123456?output=xml`
+- A range of pages within a text: `/api/letters/l123456?output=xml&view=my_view`
+- A range of lines within a text: `/api/letters/l123456?output=xml&view=my_view`
+
+/api/pta/urn:cts:pta:pta0004.pta001.pta-MsE?part=book lists all retrievable books
+
+/api/pta/urn:cts:pta:pta0004.pta001.pta-MsE/1 show book number 1
+
+/api/pta/urn:cts:pta:pta0004.pta001.pta-MsE?part=page lists all available pages
+
+
+
+## 6. Searching
 
 Uses the the defined search routines and shows the results ordered by score:
 
 `/api/search/<search-id>`
 
-### 5.1 GET-Parameters
+### 6.1 GET-Parameters
 
 - `q` the query string to be searched for
 - optional `kwic-width` parameter defines the range of characters showed the kwic (key word in context) results.
@@ -248,33 +278,28 @@ Uses the the defined search routines and shows the results ordered by score:
   - `lucene` for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
 - optional `slop` the distance between words in a phrase. Used with `type=phrase`
 
-### 5.2 Examples
-
-- Search for a word in all indexes (persons, places, etc.): `/api/search/all-indexes?q=Berlin`
-
-### 5.3 Result
+### 6.2 Result
 
 #### JSON output: `/api/search/<search-id>?q=<query>`
 
-- `?date-time` stamp of the search 
+- `?date-time` stamp of the search
 - `?type` equals "search"
 - `?id` of search
 - `?query` contains the query string
 - `?kwic-width` contains the kwic-width used. Default is 30.
 - `?list` contains maps of the objects with hits, see above.
 
-**Example**
+### 6.3 Examples
 
-Search for a text in manuscipt descriptions:
+- Search for a word in all indexes (persons, places, etc.): `/api/search/all-indexes?q=Berlin`
+- Search for a text in manuscipt descriptions:
+  `/api/search/manuscript-descr?q=Berlin`
+  results in:
 
-`/api/search/manuscript-descr?q=Berlin`
+  ```json
+  ```
 
-Results in:
-
-```json
-```
-
-## 6. Caching
+## 7. Caching
 
 Due to performance some of the API calls are cached. So calls like `/api/<object-type>`
 result in a cache for all entities of `<object-type>` and their properties.

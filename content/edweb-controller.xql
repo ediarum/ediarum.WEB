@@ -84,6 +84,7 @@ declare function local:api-routing(
         (: Get object information as JSON :)
         else $f("/api/<object-type>/<object-id>", "api/object-json.xql", $params),
 
+        (: Get a part of the object as XML :)
         $f("/api/<object-type>/<object-id>/<object-part>", "api/object-part.xql", $params)
     )
 };
