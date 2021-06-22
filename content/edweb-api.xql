@@ -1067,8 +1067,9 @@ declare function edwebapi:get-relation-list(
         else if ($relation-type/appconf:subject-condition/@type = "id")
         then
             for $r in $relations
-            let $id := util:eval-inline($r?xml,$relation-type/appconf:subject-condition)
-            let $s := $subjects[?id = $id]
+            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:subject-condition))
+            let $subj := $subjects[?id = $id]
+            for $s in $subj
             return
                 map:merge(( $r, map:entry("subject", $s?id) ))
         else
@@ -1082,16 +1083,17 @@ declare function edwebapi:get-relation-list(
         if ($relation-type/appconf:object-condition/@type = "resource")
         then
             for $r in $relations
-            let $s := $objects[?absolute-resource-id = $r?absolute-resource-id]
+            let $o := $objects[?absolute-resource-id = $r?absolute-resource-id]
             return
-                map:merge(( $r, map:entry("object", $s?id) ))
+                map:merge(( $r, map:entry("object", $o?id) ))
         else if ($relation-type/appconf:object-condition/@type = "id")
         then
             for $r in $relations
-            let $id := util:eval-inline($r?xml,$relation-type/appconf:object-condition)
-            let $s := $objects[?id = $id]
+            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:object-condition))
+            let $obj := $objects[?id = $id]
+            for $o in $obj
             return
-                map:merge(( $r, map:entry("object", $s?id) ))
+                map:merge(( $r, map:entry("object", $o?id) ))
         else
             let $object-function := util:eval($relation-type/appconf:object-condition)
             for $r in $relations
