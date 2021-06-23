@@ -1069,10 +1069,18 @@ declare function local:view-expand-links(
                         then "?ref="||$current-id
                         else ""
                     return
-                        substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
-                        ||edwebcontroller:get-exist-controller()||"/"
-                        ||$link-list?(substring-after($attribute, "$id/"))?object-type
-                        ||"/"||substring-after($attribute, "$id/")||$set-referer
+                        if (matches($attribute,'#'))
+                        then
+                            substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                            ||edwebcontroller:get-exist-controller()||"/"
+                            ||$link-list?(substring-before(substring-after($attribute, "$id/"),'#'))?object-type
+                            ||"/"||substring-before(substring-after($attribute, "$id/"),'#')||$set-referer
+                            ||"#"||substring-after($attribute, '#')
+                        else
+                            substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                            ||edwebcontroller:get-exist-controller()||"/"
+                            ||$link-list?(substring-after($attribute, "$id/"))?object-type
+                            ||"/"||substring-after($attribute, "$id/")||$set-referer
                 } 
                 catch * {
                     $error-function($attribute)
