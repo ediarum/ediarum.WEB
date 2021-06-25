@@ -1061,7 +1061,8 @@ declare function edwebapi:get-relation-list(
         if ($relation-type/appconf:subject-condition/@type = "resource")
         then
             for $r in $relations
-            let $s := $subjects[?absolute-resource-id = $r?absolute-resource-id]
+            let $subj := $subjects[?absolute-resource-id = $r?absolute-resource-id]
+            for $s in $subj
             return
                 map:merge(( $r, map:entry("subject", $s?id) ))
         else if ($relation-type/appconf:subject-condition/@type = "id")
@@ -1083,7 +1084,8 @@ declare function edwebapi:get-relation-list(
         if ($relation-type/appconf:object-condition/@type = "resource")
         then
             for $r in $relations
-            let $o := $objects[?absolute-resource-id = $r?absolute-resource-id]
+            let $obj := $objects[?absolute-resource-id = $r?absolute-resource-id]
+            for $o in $obj
             return
                 map:merge(( $r, map:entry("object", $o?id) ))
         else if ($relation-type/appconf:object-condition/@type = "id")
