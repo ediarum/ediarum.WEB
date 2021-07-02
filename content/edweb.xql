@@ -996,7 +996,7 @@ declare function edweb:load-relations(
     let $object-relations := edweb:load-relations-for-object($node, $model, $relation)
     let $all-relations := 
         if (not(empty($subject-relations?relations)) and not(empty($object-relations?relations)))
-        then map:entry("relations", ($subject-relations?relations?*, $object-relations?relations?*))
+        then map:entry("relations", ($subject-relations?relations, $object-relations?relations))
         else if (not(empty($subject-relations?relations)))
         then $subject-relations
         else if (not(empty($object-relations?relations)))
