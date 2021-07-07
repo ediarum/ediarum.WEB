@@ -181,6 +181,24 @@ declare function edweb:add-debug-information(
     </table>
 };
 
+declare function edweb:add-detail-link(
+    $node as node(),
+    $model as map(*),
+    $for as xs:string
+)
+{
+    let $link-list := edwebcontroller:api-get("/api?id-type=all")
+    return
+        try {
+            <a href="$id/{$for}">
+                <span>{$link-list?($for)?label}</span>
+            </a>
+        }
+        catch * {
+            $for
+        }
+};
+
 (:~ 
  : Generates the link option for selecting all elements in the current filter.
  :
@@ -564,6 +582,22 @@ declare function edweb:insert-count(
     string(count($model?($from)))
 };
 
+declare function edweb:insert-count-of-groups(
+    $node as node(),
+    $model as map(*),
+    $from as xs:string,
+    $group-by as xs:string
+) as xs:string
+{
+    let $items := $model?($from)
+    let $groups :=
+        for $item in $items
+        let $label := $item?($group-by)
+        group by $label
+        return $label
+    return string(count($groups))
+};
+
 (:~
  :
  :)
@@ -917,6 +951,27 @@ declare function edweb:load-project(
  : @param $node the current node
  : @param $model the current model
  : @param $relation the name of the relation (relation API endpoint)
+ : @param $id-path the model path of object id
+ : @return the updated model
+ :)
+declare function edweb:load-relations-for-subject-with-id-path(
+    $node as node(),
+    $model as map(*),
+    $relation as xs:string,
+    $id-path as xs:string
+) as map(*)
+{
+    let $id := local:template-get-string($model, $id-path)
+    return edweb:load-relations-for-subject-with-id($node, $model, $relation, $id)
+};
+
+(:~
+ : Loads all relations from API for current item as subject. The relations can
+ : be accessed in the model by using the "relations" key.
+ :
+ : @param $node the current node
+ : @param $model the current model
+ : @param $relation the name of the relation (relation API endpoint)
  : @return the updated model
  :)
 declare function edweb:load-relations-for-subject(
@@ -925,8 +980,17 @@ declare function edweb:load-relations-for-subject(
     $relation as xs:string
 ) as map(*) 
 {
-    (: let $cons := console:log("test") :)
     let $id := request:get-attribute("id")
+    return edweb:load-relations-for-subject-with-id($node, $model, $relation, $id)
+};
+
+declare function edweb:load-relations-for-subject-with-id(
+    $node as node(),
+    $model as map(*),
+    $relation as xs:string,
+    $id as xs:string
+) as map(*)
+{
     let $relations-map := edwebcontroller:api-get("/api/"||$relation)
     let $object-list := edwebcontroller:api-get("/api/"||$relations-map("object-type"))
     let $relations := $relations-map?list?*[?subject = $id]
@@ -938,10 +1002,32 @@ declare function edweb:load-relations-for-subject(
         return 
             map:merge((
                 $object-map,
-                map:entry("predicate", $r?predicate)
+                map:entry("predicate", $r?predicate),
+                map:entry("is", "object")
             ))
     let $add-map := map:entry("relations", $items)
     return map:merge(($add-map, $model))
+};
+
+(:~
+ : Loads all relations from API for current item as object. The relations can
+ : be accessed in the model by using the "relations" key.
+ :
+ : @param $node the current node
+ : @param $model the current model
+ : @param $relation the name of the relation (relation API endpoint)
+ : @param $id-path the model path of object id
+ : @return the updated model
+ :)
+declare function edweb:load-relations-for-object-with-id-path(
+    $node as node(),
+    $model as map(*),
+    $relation as xs:string,
+    $id-path as xs:string
+) as map(*)
+{
+    let $id := local:template-get-string($model, $id-path)
+    return edweb:load-relations-for-object-with-id($node, $model, $relation, $id)
 };
 
 (:~
@@ -960,6 +1046,26 @@ declare function edweb:load-relations-for-object(
 ) as map(*)
 {
     let $id := request:get-attribute("id")
+    return edweb:load-relations-for-object-with-id($node, $model, $relation, $id)
+};
+
+(:~
+ : Loads all relations from API for current item as object. The relations can
+ : be accessed in the model by using the "relations" key.
+ :
+ : @param $node the current node
+ : @param $model the current model
+ : @param $relation the name of the relation (relation API endpoint)
+ : @param $id-object id
+ : @return the updated model
+ :)
+declare function edweb:load-relations-for-object-with-id(
+    $node as node(),
+    $model as map(*),
+    $relation as xs:string,
+    $id as xs:string
+) as map(*)
+{
     let $relations-map := edwebcontroller:api-get("/api/"||$relation)
     let $subject-list := edwebcontroller:api-get("/api/"||$relations-map("subject-type"))
     let $relations := $relations-map?list?*[?object = $id]
@@ -971,7 +1077,8 @@ declare function edweb:load-relations-for-object(
         return 
             map:merge((
                 $subject-map,
-                map:entry("predicate", $r?predicate)
+                map:entry("predicate", $r?predicate),
+                map:entry("is", "subject")
             ))
     let $add-map := map:entry("relations", $items)
     return map:merge(($add-map, $model))
@@ -1003,6 +1110,66 @@ declare function edweb:load-relations(
         then $object-relations
         else ()
     return map:merge(($all-relations, $model))
+};
+
+(:~
+ : Loads all relations from the API. The relations can be accessed in the model
+ : by using the "relations" key.
+ :
+ : @param $node the current node
+ : @param $model the current model
+ : @param $relation the name of the relation (relation API endpoint)
+ : @param $id object/subject id
+ : @return the updated model
+ :)
+declare function edweb:load-relations-with-id(
+    $node as node(),
+    $model as map(*),
+    $relation as xs:string,
+    $id as xs:string
+) as map(*)
+{
+    let $subject-relations := edweb:load-relations-for-subject-with-id($node, $model, $relation, $id)
+    let $object-relations := edweb:load-relations-for-object-with-id($node, $model, $relation, $id)
+    let $all-relations :=
+        if (not(empty($subject-relations?relations)) and not(empty($object-relations?relations)))
+        then map:entry("relations", ($subject-relations?relations, $object-relations?relations))
+        else if (not(empty($subject-relations?relations)))
+        then $subject-relations
+        else if (not(empty($object-relations?relations)))
+        then $object-relations
+        else ()
+    return map:merge(($all-relations, $model))
+};
+
+declare function edweb:load-second-degree-relations(
+    $node as node(),
+    $model as map(*),
+    $first-degree-relation as xs:string,
+    $second-degree-relation as xs:string
+) as map(*)
+{
+    let $relations :=
+        let $first-degree-relations := edweb:load-relations($node, $model, $first-degree-relation)?relations
+        for $first-degree-rel in $first-degree-relations
+        let $second-degree-relations := edweb:load-relations-with-id($node, $model, $second-degree-relation, $first-degree-rel?id)?relations
+        for $second-degree-rel in $second-degree-relations
+        return
+            map:merge((
+                map:entry("first-degree-relation", $first-degree-rel),
+                map:entry("second-degree-relation", $second-degree-rel)
+            ))
+    let $items :=
+        for $rel in $relations
+        let $second-degree-relation-label := $rel?second-degree-relation?label
+        order by $second-degree-relation-label
+        return
+            map:merge((
+                $rel?second-degree-relation,
+                map:entry("predicate", $rel?first-degree-relation?label)
+            ))
+    let $add-map := map:entry("relations", $items)
+    return map:merge(($add-map, $model))
 };
 
 (: VIEW functions used by view.xql :)
@@ -1327,6 +1494,37 @@ declare function edweb:template-detail-link(
         <a href="$id/{$id}">
             {templates:process($node/node(), $model)}
         </a>
+};
+
+declare function edweb:template-do-if-not-empty($node as node(), $model as map(*), $xpath as xs:string) as node()* {
+    let $xml := $model?current-doc
+    let $result := util:eval-inline($xml, $xpath)
+    return
+    if ($result != "") then
+        <div>
+            {templates:process($node/node(), $model)}
+        </div>
+    else ()
+};
+
+declare function edweb:template-for-each-group( 
+    $node as node(), 
+    $model as map(*), 
+    $from as xs:string,
+    $to as xs:string,
+    $group-by as xs:string
+)
+{
+    for $group in $model?($from)
+    let $param-group-by := $group?($group-by)
+    group by $param-group-by
+    order by $param-group-by
+    return
+        let $first-entry := map:entry($to, $group[1])
+        let $new-group := map:entry($from, $group)
+        let $model := map:merge(($model, $first-entry, $new-group))
+        return
+            templates:process($node/node(), $model)
 };
 
 (:~
