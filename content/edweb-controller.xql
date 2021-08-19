@@ -5,7 +5,6 @@ xquery version "3.1";
  :)
 module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
-import module namespace templates="http://exist-db.org/xquery/templates";
 import module namespace console="http://exist-db.org/xquery/console";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
@@ -16,6 +15,10 @@ declare namespace functx = "http://www.functx.com";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace test="http://exist-db.org/xquery/xqsuite";
 declare namespace http="http://expath.org/ns/http-client";
+declare namespace request="http://exist-db.org/xquery/request";
+declare namespace util="http://exist-db.org/xquery/util";
+declare namespace xmldb="http://exist-db.org/xquery/xmldb";
+declare namespace map="http://www.w3.org/2005/xpath-functions/map";
 
 declare variable $edwebcontroller:controller := "/ediarum.web";
 declare variable $edwebcontroller:edweb-path := "/db/apps/ediarum.web";
@@ -56,7 +59,7 @@ declare function functx:repeat-string($stringToRepeat as xs:string?, $count as x
 declare function local:api-routing(
     $function as xs:string, 
     $params as xs:string?
-) 
+) as item()*
 {
     let $f := function-lookup(xs:QName($function), 3)
     return (
@@ -99,10 +102,11 @@ declare function local:api-routing(
  :)
 declare function edwebcontroller:api-get(
     $api-path as xs:string
-) 
+) as item()*
 {
     try {
-        let $log := console:log("api-get","Request: "||$api-path)
+        console:log("api-get","Request: "||$api-path)
+        ,
         let $store-attributes := 
             for $att in request:attribute-names()
             let $value := request:get-attribute($att)
@@ -113,23 +117,30 @@ declare function edwebcontroller:api-get(
     	        request:set-attribute($att, "")
             )
         let $store-attributes := map:merge( $store-attributes )
-        let $app-target := 
+        let $result := (
+            (: app-target :)
             request:set-attribute(
                 "app-target", 
                 substring-after(edwebcontroller:get-exist-root(), "xmldb:exist://")
                     ||edwebcontroller:get-exist-controller()
             )
-        let $get-params :=
+            ,
+            (: get-params :)
             for $param in tokenize(substring-after($api-path, "?"), "&amp;")
             return 
                 request:set-attribute(substring-before($param, "="), substring-after($param, "="))
-        let $result := local:api-routing("local:api-get-from-pattern", $api-path)
-        let $restore-attributes := 
-            map:for-each($store-attributes, function ($key, $value) {
+            ,
+            local:api-routing("local:api-get-from-pattern", $api-path)
+        )
+        return (
+            (: restore-attributes :)
+            map:for-each($store-attributes, function ($key as xs:string, $value as xs:string) {
                 (: console:log("After: "||$key||":"||$value), :)
                 request:set-attribute($key, $value)
             })
-        return $result
+            ,
+            $result
+        )
     } catch * {
         error(xs:QName("edwebcontroller:api-get-001"), "Error with the api request: "||$api-path)
     }
@@ -142,7 +153,7 @@ declare function local:api-get-from-pattern(
     $api-pattern as xs:string, 
     $xquery as xs:string, 
     $api-path as xs:string
-) 
+) as item()*
 {
     let $allowed-pattern-chars := $edwebcontroller:allowed-pattern-chars
     let $path := 
@@ -152,30 +163,33 @@ declare function local:api-get-from-pattern(
     let $get-params := substring-after($api-path, "?")
     return
         if (edwebcontroller:path-equals-pattern($path, $api-pattern, $allowed-pattern-chars)) 
-        then
-            let $params := 
-                (
-                    for $att in edwebcontroller:read-path-variables(
-                        $api-path, 
-                        $api-pattern, 
-                        $allowed-pattern-chars
-                    )
-                    let $att-name := $att/@key/string()
-                    let $att-value := $att/@value/string()
-                    return request:set-attribute($att-name, $att-value),
-        
-                    for $att in tokenize($get-params, "&amp;")
-                    let $att-name := substring-before($att, "=")
-                    let $att-value := substring-after($att, "=")
-                    return request:set-attribute($att-name, $att-value)
-                )
+        then (
+            (: params :)
+            for $att in edwebcontroller:read-path-variables(
+                $api-path,
+                $api-pattern,
+                $allowed-pattern-chars
+            )
+            let $att-name := $att/@key/string()
+            let $att-value := $att/@value/string()
+            return request:set-attribute($att-name, $att-value)
+            ,
+            for $att in tokenize($get-params, "&amp;")
+            let $att-name := substring-before($att, "=")
+            let $att-value := substring-after($att, "=")
+            return request:set-attribute($att-name, $att-value)
+            ,
             let $uri-string := $edwebcontroller:edweb-path||"/views/"||$xquery||"?"||$get-params
             let $result := util:eval(xs:anyURI($uri-string), false())
-            let $clear-query-atts :=
+            return (
+                (: clear-query-atts :)
                 for $att in tokenize($get-params, "&amp;")
                 let $att-name := substring-before($att, "=")
                 return request:set-attribute($att-name, "")
-            return $result
+                ,
+                $result
+            )
+        )
         else ()
 };
 
@@ -187,7 +201,7 @@ declare function local:api-get-from-pattern(
  : @return the result of the API request as xml, json or text.
  :)
 declare function edwebcontroller:generate-api(
-)
+) as item()*
 {
     (: request:set-attribute("project", edwebcontroller:get-project()), :)
     request:set-attribute(
@@ -205,7 +219,7 @@ declare function local:generate-api-path(
     $path-pattern as xs:string, 
     $view as xs:string, 
     $params as xs:string?
-) 
+) as item()*
 { 
     local:generate-api-path(
         $path-pattern, 
@@ -283,7 +297,7 @@ function local:generate-api-path(
     $view as xs:string, 
     $is-pass-through as xs:boolean, 
     $exist-path as xs:string
-) 
+) as item()*
 {
     edwebcontroller:generate-path(
         $path-pattern, 
@@ -301,7 +315,7 @@ function local:generate-api-path(
 declare function edwebcontroller:generate-path(
     $path-pattern as xs:string, 
     $view as xs:string
-) 
+) as item()*
 {
     edwebcontroller:generate-path(
         $path-pattern,
@@ -323,7 +337,7 @@ declare function edwebcontroller:generate-path(
     $exist-path as xs:string, 
     $controller as xs:string, 
     $as-view as xs:boolean
-) 
+) as item()*
 {
     let $allowed-pattern-chars := $edwebcontroller:allowed-pattern-chars
     let $exist-path := xmldb:decode($exist-path)
@@ -387,7 +401,7 @@ declare function edwebcontroller:generate-path(
 declare function edwebcontroller:generate-routing(
     $list-page as xs:string,
     $detail-page as xs:string
-)
+) as item()*
 {
     if (starts-with(edwebcontroller:get-exist-path(), "/api"))
     then ()
@@ -429,7 +443,7 @@ declare function local:get-view-path(
 {
     let $param-regex := "<([^>]+?)>"
     let $path-parts :=
-        for $part at $pos in functx:get-matches-and-non-matches($view, $param-regex)
+        for $part in functx:get-matches-and-non-matches($view, $param-regex)
             return if ($part/self::non-match) then
                 $part/string()
             else if ($part/self::match) then
@@ -454,7 +468,7 @@ declare function edwebcontroller:init-exist-variables(
     $exist-controller as xs:string, 
     $exist-prefix as xs:string, 
     $exist-root as xs:string
-)
+) as item()*
 {
     request:set-attribute("exist-path", $exist-path),
     request:set-attribute("exist-resource", $exist-resource),
@@ -547,7 +561,7 @@ declare function edwebcontroller:get-exist-root(
 declare function edwebcontroller:object-view(
     $object-type as xs:string, 
     $view as xs:string
-) 
+) as item()*
 {
     edwebcontroller:view-with-feed(
         "/"||$object-type||"/index.html", 
@@ -566,7 +580,7 @@ declare function edwebcontroller:object-view(
 declare function edwebcontroller:object-detail-view(
     $object-type as xs:string, 
     $view as xs:string
-) 
+) as item()*
 {
     edwebcontroller:view-with-feed(
         "/"||$object-type||"/", 
@@ -611,7 +625,7 @@ function edwebcontroller:path-equals-pattern(
 {
     let $param-regex := "<([^>]+?)>"
     let $path-regex-parts := 
-        for $part at $pos in functx:get-matches-and-non-matches($path-pattern, $param-regex)
+        for $part in functx:get-matches-and-non-matches($path-pattern, $param-regex)
         return 
             if ($part/self::non-match) 
             then functx:escape-for-regex($part/string())
@@ -626,7 +640,7 @@ function edwebcontroller:path-equals-pattern(
  : A routing command which passes everything to the standard output.
  :)
 declare function edwebcontroller:pass-through(
-) 
+) as item()*
 {
     if (edwebcontroller:is-pass-through()) 
     then (
@@ -663,7 +677,8 @@ function edwebcontroller:read-path-variables(
 ) as node()* 
 {
     let $param-regex := "<([^>]+?)>"
-    let $path-regex-parts := for $part at $pos in functx:get-matches-and-non-matches($path-pattern, $param-regex)
+    let $path-regex-parts := 
+        for $part in functx:get-matches-and-non-matches($path-pattern, $param-regex)
         return if ($part/self::non-match) then
             [$part/string(), ()]
         else if ($part/self::match) then
@@ -690,7 +705,7 @@ function edwebcontroller:read-path-variables(
 declare function edwebcontroller:redirect(
     $equals as xs:string, 
     $redirect as xs:string
-) 
+) as item()*
 {
     if (edwebcontroller:is-pass-through() and edwebcontroller:get-exist-path() = $equals) 
     then (
@@ -712,7 +727,7 @@ declare function edwebcontroller:redirect(
 declare function edwebcontroller:redirect-to-id(
     $starts-with as xs:string,
     $id-type as xs:string
-)
+) as item()*
 {
   if (edwebcontroller:is-pass-through() and starts-with(edwebcontroller:get-exist-path(), $starts-with)) 
     then (
@@ -741,7 +756,7 @@ declare function edwebcontroller:redirect-to-id(
  :)
 declare function edwebcontroller:set-project(
     $project-name as xs:string
-)
+) as item()
 {
     request:set-attribute("project", $project-name)
 };
@@ -759,7 +774,7 @@ declare function edwebcontroller:view-with-feed(
     $starts-with as xs:string, 
     $view as xs:string, 
     $feed as xs:string
-) 
+) as item()*
 {
     if (edwebcontroller:is-pass-through() and starts-with(edwebcontroller:get-exist-path(), $starts-with)) 
     then (
@@ -791,7 +806,7 @@ declare function edwebcontroller:view-with-feed(
  : for the current request is set already.
  :)
 declare function local:set-pass-through-false(
-) 
+) as item()
 {
     request:set-attribute("pass-through", "false")
 };
@@ -801,7 +816,7 @@ declare function local:set-pass-through-false(
  : for the current request is set already.
  :)
 declare function local:set-pass-through-true(
-) 
+) as item()
 {
     request:set-attribute("pass-through", "true")
 };
@@ -813,7 +828,7 @@ declare function local:set-pass-through-true(
  :)
 declare function local:set-feed(
     $feed as xs:string
-) 
+) as item()*
 {
     let $feed-items := tokenize($feed, "/")
     for $param at $pos in $feed-items
