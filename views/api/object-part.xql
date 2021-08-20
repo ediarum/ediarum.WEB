@@ -38,7 +38,9 @@ declare function local:milestone-chunk($ms1 as node(), $ms2 as node(), $node as 
                 $node
             else if (some $n in $node/descendant::* satisfies ($n is $ms1 or $n is $ms2)) then
                 element {node-name($node)} {
-                    for $i in ( $node/node() | $node/@* )
+                    for $i in ( $node/@* )
+                        return local:milestone-chunk($ms1, $ms2, $i),
+                    for $i in ( $node/node() )
                         return local:milestone-chunk($ms1, $ms2, $i)
                 }
             else if ( $node >> $ms1 and $node << $ms2 ) then
@@ -59,7 +61,9 @@ declare function local:milestone-chunk($ms1 as node(), $node as node()) as node(
                 $node
             else if (some $n in $node/descendant::* satisfies ($n is $ms1)) then
                 element {node-name($node)} {
-                    for $i in ( $node/node() | $node/@* )
+                    for $i in ( $node/@* )
+                        return local:milestone-chunk($ms1, $i),
+                    for $i in ( $node/node() )
                         return local:milestone-chunk($ms1, $i)
                 }
             else if ( $node >> $ms1) then

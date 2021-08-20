@@ -454,6 +454,21 @@ declare function local:get-view-path(
 };
 
 (:~
+ : Enables the API according to the CTS specifications, see
+ : <https://github.com/cite-architecture/cts_spec/blob/master/md/specification.md>.
+ : It must be used together with edwebcontroller:generate-api() in the
+ : controller.xql.
+ :
+ :)
+declare function edwebcontroller:include-cts-api(
+    $cts-object-id-type as xs:string
+) as item()*
+{
+    request:set-attribute("cts-object-id-type", $cts-object-id-type),
+    edwebcontroller:generate-path("/api/cts", "api/cts.xql", edwebcontroller:is-pass-through(), edwebcontroller:get-exist-path(), $edwebcontroller:controller, false())
+};
+
+(:~
  : Sets request attributes for the exist variables of the current request.
  :
  : @param $exist-path
@@ -735,9 +750,8 @@ declare function edwebcontroller:redirect-to-id(
         ,
         let $base-url := substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                 ||edwebcontroller:get-exist-controller()
-        let $link-list := edwebcontroller:api-get("/api?id-type="||$id-type)
         let $id := substring-after(edwebcontroller:get-exist-path(), $starts-with)
-        let $object := $link-list[?filter?($id-type) = $id][1]
+        let $object := edwebcontroller:find-object-by-id($id-type, $id)
         let $object-type := $object?object-type
         let $object-id := $object?id
         let $redirect := $base-url||"/"||$object-type||"/"||$object-id
@@ -747,6 +761,22 @@ declare function edwebcontroller:redirect-to-id(
             </dispatch>
     )
     else ()
+};
+
+declare function edwebcontroller:find-object-by-id(
+    $id-type as xs:string,
+    $id as xs:string
+) as map(*)
+{
+    try {
+        let $link-list := edwebcontroller:api-get("/api?id-type="||$id-type)
+        let $object := $link-list[?filter?($id-type) = $id][1]
+        return
+            $object
+    }
+    catch err:XPTY0004 {
+        error(xs:QName("edwebcontroller:find-object-by-id-001"), "No object found with request: /api?id-type="||$id-type||"")
+    }
 };
 
 (:~
@@ -806,7 +836,7 @@ declare function edwebcontroller:view-with-feed(
  : for the current request is set already.
  :)
 declare function local:set-pass-through-false(
-) as item()
+) as item()*
 {
     request:set-attribute("pass-through", "false")
 };
@@ -816,7 +846,7 @@ declare function local:set-pass-through-false(
  : for the current request is set already.
  :)
 declare function local:set-pass-through-true(
-) as item()
+) as item()*
 {
     request:set-attribute("pass-through", "true")
 };

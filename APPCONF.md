@@ -1,28 +1,27 @@
 # Definition of research data with the appconf.xml
 
-- [Definition of research data with the appconf.xml](#definition-of-research-data-with-the-appconfxml)
-  - [1. Structure](#1-structure)
-  - [2. Project information](#2-project-information)
-  - [3. Definition of an object / entity](#3-definition-of-an-object--entity)
-    - [3.1 Base information](#31-base-information)
-    - [3.2 Properties (filters)](#32-properties-filters)
-      - [Base information](#base-information)
-      - [XPath Property](#xpath-property)
-      - [Label property](#label-property)
-      - [ID property](#id-property)
-      - [Relation property](#relation-property)
-    - [3.3 Views / XSLTs](#33-views--xslts)
-      - [Base information](#base-information-1)
-    - [3.4 Parts and reference points](#34-parts-and-reference-points)
-      - [Main definition](#main-definition)
-      - [Base information](#base-information-2)
-    - [3.5 Search index](#35-search-index)
-      - [Base information](#base-information-3)
-  - [4. Definition of a relation](#4-definition-of-a-relation)
-    - [4.1 Base information](#41-base-information)
-    - [4.2 Subject and object condition](#42-subject-and-object-condition)
-  - [5. Definition of a search routine](#5-definition-of-a-search-routine)
-    - [5.1 Base information](#51-base-information)
+- [1. Structure](#1-structure)
+- [2. Project information](#2-project-information)
+- [3. Definition of an object / entity](#3-definition-of-an-object--entity)
+  - [3.1 Base information](#31-base-information)
+  - [3.2 Properties (filters)](#32-properties-filters)
+    - [Base information](#base-information)
+    - [XPath Property](#xpath-property)
+    - [Label property](#label-property)
+    - [ID property](#id-property)
+    - [Relation property](#relation-property)
+  - [3.3 Views / XSLTs](#33-views--xslts)
+    - [Base information](#base-information-1)
+  - [3.4 Parts and reference points](#34-parts-and-reference-points)
+    - [Main definition](#main-definition)
+    - [Base information](#base-information-2)
+  - [3.5 Search index](#35-search-index)
+    - [Base information](#base-information-3)
+- [4. Definition of a relation](#4-definition-of-a-relation)
+  - [4.1 Base information](#41-base-information)
+  - [4.2 Subject and object condition](#42-subject-and-object-condition)
+- [5. Definition of a search routine](#5-definition-of-a-search-routine)
+  - [5.1 Base information](#51-base-information)
 
 ## 1. Structure
 
@@ -317,7 +316,7 @@ All part definitions share the following structure:
 
 - `part/@xml:id` the ID of the part. *Important: The ID values must only contain literals and/or numbers.*
 - `part/@starts-with` optional prefix which the ID values must match, e.g. `line-`
-- `root` 
+- `root` element which is root of the part. *Important: no paths are allowed. Write `tei:div[parent::tei:div]` instead of `tei:div/tei:div`*
 - `id` *Important: The ID values must only contain literals and/or numbers.*
 - zero or more `part` definitions of nested parts
 
