@@ -297,19 +297,9 @@ declare function edwebapi:get-object(
 ) as map(*) 
 {
     let $object-def := edwebapi:get-config($app-target)//appconf:object[@xml:id=$object-type]
-    let $namespaces :=
-        for $ns in $object-def/appconf:item/appconf:namespace
-        let $prefix := $ns/@id/string()
-        let $namespace-uri := $ns/string()
-        return util:declare-namespace($prefix, $namespace-uri)
-    let $data-collection := edwebapi:data-collection($app-target)
-    let $collection := $object-def/appconf:collection
-    let $root := $object-def/appconf:item/appconf:root
-    let $list := edwebapi:get-objects($data-collection, $collection, $root)
 
-    let $id-xpath := $object-def/appconf:item/appconf:id
-    let $find-expression := $id-xpath||"='"||$object-id||"'"
-    let $item := util:eval("$list["||$find-expression||"][1]")
+    let $item := edwebapi:get-object-xml($app-target, $object-type, $object-id)
+    let $xml := $item
 
     let $inner-nav :=
         for $n in $object-def/appconf:inner-navigation/appconf:navigation
@@ -352,11 +342,6 @@ declare function edwebapi:get-object(
         let $prepath := ""
         for $part in $object-def/appconf:parts/appconf:part
             return local:get-part-map($part, $prefix, $prepath, $separator, "")
-    let $xml :=
-        if ($item[1]) 
-        then $item[1]
-        else error(xs:QName("edwebapi:get-object-001"), "Can't find "||$root||"["||$find-expression
-            ||"] in collection "||$collection||" in "||$data-collection)
     let $views := 
         for $view at $pos in $object-def//appconf:views/appconf:view
         let $id := $view/@id/string()
@@ -433,6 +418,133 @@ declare function edwebapi:get-object-as(
                 ||$path)
         }
     return $result
+};
+
+declare function edwebapi:get-object-with-search(
+    $app-target as xs:string,
+    $object-type as xs:string,
+    $object-id as xs:string,
+    $kwic-width as xs:string?,
+    $search-xpath as xs:string,
+    $search-query as xs:string,
+    $search-type as xs:string?,
+    $slop as xs:string?
+) as map(*)
+{
+    let $object-def := edwebapi:get-config($app-target)//appconf:object[@xml:id=$object-type]
+    let $xml := edwebapi:get-object-xml($app-target, $object-type, $object-id)
+
+    (: Search :)
+    let $init-indices := local:init-search-indices($app-target)
+    let $kwic-width := 
+        if ($kwic-width||"" = "")
+        then "30"
+        else $kwic-width
+    let $search-xpath :=
+        if ($search-xpath eq ".")
+        then "("||string-join($object-def/appconf:lucene/appconf:text/@qname/string(), "|")||")"
+        else $search-xpath
+
+    let $query := edwebapi:build-search-query($search-query, $search-type, $slop)
+
+    let $query-function := ".[.//"||$search-xpath||"[ft:query(., $query)]]"
+    let $search-score as xs:float := 
+        if ($search-xpath||$search-query||"" != "")
+        then xs:float(ft:score($xml))
+        else xs:float(0.0)
+    let $search-hits := 
+        if ($search-xpath||$search-query||"" != "")
+        then util:eval-inline($xml, $query-function)
+        else ()
+    let $xml :=
+        if (count($search-hits) > 0)
+        then util:expand($search-hits)
+        else $xml
+
+    let $map := edwebapi:get-object($app-target, $object-type, $object-id)
+    return 
+        map:merge(( 
+            $map,
+            map:entry("xml", $xml),
+            map:entry( 
+                "search-results",
+                for $hit in $search-hits
+                let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
+                (: TODO delete following line? :)
+                for $item at $pos in $kwic
+                return 
+                    map:merge (( 
+                        map:entry("context-previous", $kwic[$pos]/span[@class='previous']/string()),
+                        map:entry("keyword", $kwic[$pos]/span[@class='hi']/string()),
+                        map:entry("context-following", $kwic[$pos]/span[@class='following']/string()),
+                        map:entry("score", ft:score($hit))
+                    ))
+            ),
+            map:entry("score", $search-score)
+        ))
+};
+
+declare function edwebapi:build-search-query(
+    $search-query as xs:string,
+    $search-type as xs:string?,
+    $slop as xs:string?
+) as node()
+{
+    let $query :=
+        switch ($search-type)
+        case "regex" return 
+            <bool>
+            {
+                for $word in tokenize($search-query, ' ' )
+                return
+                    <regex occur="must">{$word}</regex>
+            }
+            </bool>
+        case "phrase" return <phrase slop="{$slop}">{$search-query}</phrase>
+        case "lucene" return $search-query
+        default return 
+            <bool>
+            {
+                for $word in tokenize($search-query, ' ' )
+                return
+                    <term occur="must">{$word}</term>
+            }
+            </bool>
+    let $query := 
+        if ($search-type = "lucene")
+        then $query
+        else
+            <query>{$query}</query>
+    return $query
+};
+
+declare function edwebapi:get-object-xml(
+    $app-target as xs:string,
+    $object-type as xs:string,
+    $object-id as xs:string
+) as node()?
+{
+    let $object-def := edwebapi:get-config($app-target)//appconf:object[@xml:id=$object-type]
+    let $namespaces :=
+        for $ns in $object-def/appconf:item/appconf:namespace
+        let $prefix := $ns/@id/string()
+        let $namespace-uri := $ns/string()
+        return util:declare-namespace($prefix, $namespace-uri)
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $collection := $object-def/appconf:collection
+    let $root := $object-def/appconf:item/appconf:root
+    let $list := edwebapi:get-objects($data-collection, $collection, $root)
+
+    let $id-xpath := $object-def/appconf:item/appconf:id
+    let $find-expression := $id-xpath||"='"||$object-id||"'"
+    let $item := util:eval("$list["||$find-expression||"][1]")
+
+    let $xml :=
+        if ($item[1])
+        then $item[1]
+        else error(xs:QName("edwebapi:get-object-001"), "Can't find "||$root||"["||$find-expression
+            ||"] in collection "||$collection||" in "||$data-collection)
+    return $xml
 };
 
 declare function edwebapi:eval-base-data-for-object(
@@ -677,31 +789,8 @@ declare function edwebapi:get-object-list-with-search(
         if ($search-xpath eq ".")
         then "("||string-join($object-def/appconf:lucene/appconf:text/@qname/string(), "|")||")"
         else $search-xpath
-    let $query :=
-        switch ($search-type)
-        case "regex" return 
-            <bool>
-            {
-                for $word in tokenize($search-query, ' ' )
-                return
-                    <regex occur="must">{$word}</regex>
-            }
-            </bool>
-        case "phrase" return <phrase slop="{$slop}">{$search-query}</phrase>
-        case "lucene" return $search-query
-        default return 
-            <bool>
-            {
-                for $word in tokenize($search-query, ' ' )
-                return
-                    <term occur="must">{$word}</term>
-            }
-            </bool>
-    let $query := 
-        if ($search-type = "lucene")
-        then $query
-        else
-            <query>{$query}</query>
+    let $query := edwebapi:build-search-query($search-query, $search-type, $slop)
+
     let $objects-xml := 
         if ($search-xpath||$search-query||"" != "")
         then

@@ -1,31 +1,31 @@
 # API
 
-- [API](#api)
-  - [1. APPCONF](#1-appconf)
-  - [2. List of all IDs](#2-list-of-all-ids)
-    - [2.1 GET-Parameters](#21-get-parameters)
-  - [3. List of objects or relations](#3-list-of-objects-or-relations)
-    - [3.1 GET-Parameters](#31-get-parameters)
-    - [3.2 Results](#32-results)
-      - [Default `/api/<object-type>`](#default-apiobject-type)
-      - [Default `/api/<relation-type>`](#default-apirelation-type)
-    - [3.3 Examples](#33-examples)
-  - [4. Get object](#4-get-object)
-    - [4.1 GET-Parameters](#41-get-parameters)
-    - [4.2 Results](#42-results)
-      - [JSON output: `/api/<object-type>/<object-id>`](#json-output-apiobject-typeobject-id)
-    - [4.3 Examples](#43-examples)
-  - [5. Get part of an object](#5-get-part-of-an-object)
-    - [5.1 GET-Parameters](#51-get-parameters)
-    - [5.2 Results](#52-results)
-      - [JSON output](#json-output)
-    - [5.3 Examples](#53-examples)
-  - [6. Searching](#6-searching)
-    - [6.1 GET-Parameters](#61-get-parameters)
-    - [6.2 Result](#62-result)
-      - [JSON output: `/api/search/<search-id>?q=<query>`](#json-output-apisearchsearch-idqquery)
-    - [6.3 Examples](#63-examples)
-  - [7. Caching](#7-caching)
+- [1. APPCONF](#1-appconf)
+- [2. List of all IDs](#2-list-of-all-ids)
+  - [2.1 GET-Parameters](#21-get-parameters)
+- [3. List of objects or relations](#3-list-of-objects-or-relations)
+  - [3.1 GET-Parameters](#31-get-parameters)
+  - [3.2 Results](#32-results)
+    - [Default `/api/<object-type>`](#default-apiobject-type)
+    - [Default `/api/<relation-type>`](#default-apirelation-type)
+  - [3.3 Examples](#33-examples)
+- [4. Get object](#4-get-object)
+  - [4.1 GET-Parameters](#41-get-parameters)
+  - [4.2 Results](#42-results)
+    - [XML output: `/api/<object-type>/<object-id>?output=xml`](#xml-output-apiobject-typeobject-idoutputxml)
+    - [JSON output: `/api/<object-type>/<object-id>`](#json-output-apiobject-typeobject-id)
+  - [4.3 Examples](#43-examples)
+- [5. Get part of an object](#5-get-part-of-an-object)
+  - [5.1 GET-Parameters](#51-get-parameters)
+  - [5.2 Results](#52-results)
+    - [JSON output](#json-output)
+  - [5.3 Examples](#53-examples)
+- [6. Searching](#6-searching)
+  - [6.1 GET-Parameters](#61-get-parameters)
+  - [6.2 Result](#62-result)
+    - [JSON output: `/api/search/<search-id>?q=<query>`](#json-output-apisearchsearch-idqquery)
+  - [6.3 Examples](#63-examples)
+- [7. Caching](#7-caching)
 
 ## 1. APPCONF
 
@@ -161,8 +161,21 @@ Returns a information of a single object.
   - `json-xml` some of the object information is retrieved as JSON, including the XML.
   - if not set: some object information is retrieved as JSON
 - `view` defines which view (see [APPCONF.md](APPCONF.md)) is used to transform the object. The result is retrieved. To be used with `output`.
+- `search` searches the object.
+- `search-type` optional parameter. To be used with `search`. With following values:
+  - with empty value the exact matches are found. Multiple words are separated with a space.
+  - `regex` for one or more words (separated by space) using regular expressions
+  - `phrase` for a query of multiple words. With `slop` the distance can be defined (default is 1).
+  - `lucene` for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
+- `search-xpath` optional parameter. To be used with `search`. One can specify which xpath-Elements of the object are included in the search.
+- `slop` the distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
 
 ### 4.2 Results
+
+#### XML output: `/api/<object-type>/<object-id>?output=xml`
+
+Shows the XML data. If a search was triggered the hits are marked with
+`<exist:match xmlns:exist="http://exist.sourceforge.net/NS/exist">`.
 
 #### JSON output: `/api/<object-type>/<object-id>`
 
@@ -193,6 +206,11 @@ Returns a information of a single object.
   - `?root` definition of part root
   - `?xmlid` of part
   - `?("part-id")` contains definition of nested parts
+- `?search-results` contains an array of hits, if a search was triggered. Each hit containing:
+  - `?context-following` of the found keyword
+  - `?context-previous` of the found keyword
+  - `?keyword` found by search
+  - `?score` of this single search hit
 - `?views` contains the defined views for the object
 - `?views?("view-id")` contains the following values:
   - `?id` of view

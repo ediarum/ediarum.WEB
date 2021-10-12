@@ -12,6 +12,16 @@
 
 ediarum.WEB offers a API to retrieve all needed data for the frontend. Details of the API is found in [API.md](API.md).
 
+The following features are supported:
+
+- List of objects incl. facetted search and fulltext search
+- Single object as XML
+- Transform a single object with XSLT
+- Metadata of an object as JSON
+- Search within a list of objects or in a single object and highlight the hits
+- Retrieve passages / parts of an object
+- Search for relations between objects
+
 *Setup*
 
 To include the ediarum.web backend API add a `appconf.xml` (see [APPCONF.xml](APPCONF.xml)) to your project and include the following lines to your `controller.xql`:
