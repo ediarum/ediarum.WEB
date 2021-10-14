@@ -158,12 +158,13 @@ declare function edwebapi:list-parts(
         then
             (: .. gib den 'path' mit, suche die dortigen IDs und liefere subxml, sowie den 
                ersetzten 'path' zurück. :)
-            let $depend-maps := 
+            let $depend-maps :=
                 local:list-part-ids(
-                    $xml, 
-                    $parts?($depends), 
-                    $part?path, 
-                    $object-type, 
+                    $xml,
+                    $parts,
+                    $parts?($depends),
+                    $part?path,
+                    $object-type,
                     $object-id
                 )
             (: Dann suche nach Teilen im 'subxml' .. :)
@@ -183,23 +184,56 @@ declare function edwebapi:list-parts(
  :
  :)
 declare function local:list-part-ids(
-    $xml, 
-    $part, 
-    $path, 
-    $object-type, 
-    $object-id
-) 
+    $xml as node(),
+    $parts as map(*),
+    $part as map(*),
+    $sub-path as xs:string,
+    $object-type as xs:string,
+    $object-id as xs:string
+) as map(*)*
 {
+    let $maps :=
+        (: Wenn es Abhängigkeiten gibt, .. :)
+        if ($part?depends != "")
+        then
+            (: .. dann rufe diese Funktion rekursiv auf, .. :)
+            local:list-part-ids(
+                $xml, (: .. übergebe das volle XML, .. :)
+                $parts, (: .. die Definition aller "Teile", .. :)
+                $parts?($part?depends), (: .. den "Teil" mit Abhängigkeit, .. :)
+                $part?path, (: .. den aktuellen "Pfad", z.B. <book>.<chapter>, .. :)
+                $object-type, (: .. den Objekt-Typ .. :)
+                $object-id (: .. und die ID. :)
+            )
+            (: Als Resultat gibt es eine Map mit den jeweiligen Teil-XMLs und teilweise aufgelösten Pfaden. :)
+        else
+            (: Ansonsten nimm .. :)
+            map {
+                "xml": $xml, (: .. das vollständige XML .. :)
+                "path": $part?path (: .. und die Pfaddefinition, z.B. <book>. :)
+            }
+
+    (: Für jedes Teil-XML und die Pfaddefinition, z.B. book-1.<chapter>, book-2.<chapter> :)
+    for $map in $maps
+    let $xml := $map?xml
+    let $path := $map?path
+
+    (: .. stelle den XPATH-Ausdruck zusammen, .. :)
     let $root := $part?root
     let $id-path := $part?id
-    let $xpath := ".//" || $root || "[" || $id-path || "]"
-    let $nodes := util:eval-inline($xml, $xpath)
-    for $node in $nodes
-    let $id := util:eval-inline($node, $id-path)
-    let $sub-path := replace($path, "<" || $part?xmlid || ">", $id)
-    let $this-path := replace($part?path, "<" || $part?xmlid || ">", $id)
+    let $xpath := ".//" || $root || "/" || $id-path
+    (: .. suche nach Teilen mit IDs im 'subxml' .. :)
+    let $ids := util:eval-inline($xml, $xpath)
+    (: .. und ersetze im 'path' die gefundenen IDs. :)
+    for $id in $ids
+    (: Nimm den Pfad für den aktuellen Teil, z.B.: prefix-<book> --> prefix-1, .. :)
+    let $this-path := replace($path, "<" || $part?xmlid || ">", $id)
+    (: .. um damit den längeren Subpfad zu konkretisieren, z.B.: prefix-<book>.<chapter> --> prefix-1.<chapter>, .. :)
+    let $sub-path := replace($sub-path, $part?path, $this-path)
+    (: .. und das jeweilige spezifischere Sub-XML zu holen und weiterzurreichen. :)
     let $sub-xml := edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id||"/"||$this-path)
     return
+        (: Übergebe das XML und den konkretisierten Pfad an die aufrufende Funktion. :)
         map:merge((
             map:entry("id", $id),
             map:entry("path", $sub-path),
