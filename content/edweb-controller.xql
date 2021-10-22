@@ -695,13 +695,13 @@ function edwebcontroller:read-path-variables(
     let $path-regex-parts := 
         for $part in functx:get-matches-and-non-matches($path-pattern, $param-regex)
         return if ($part/self::non-match) then
-            [$part/string(), ()]
+            [functx:escape-for-regex($part/string()), ()]
         else if ($part/self::match) then
             let $key := replace($part, $param-regex, "$1")
             return [$variable-pattern, $key]
         else ()
     let $matches := for $part at $pos in $path-regex-parts
-        let $path-tail := replace ($path, string-join(for $p in subsequence($path-regex-parts, 1, $pos -1) return $p(1)), "")
+        let $path-tail := replace ($path, "^"||string-join(for $p in subsequence($path-regex-parts, 1, $pos -1) return $p(1)), "")
         let $match := functx:get-matches($path-tail, $part(1))[1]
         return <match>{$match}</match>
     let $params := for $p at $pos in $path-regex-parts return
