@@ -6,20 +6,10 @@
 - [3. List of objects or relations](#3-list-of-objects-or-relations)
   - [3.1 GET-Parameters](#31-get-parameters)
   - [3.2 Results](#32-results)
-    - [Default `/api/<object-type>`](#default-apiobject-type)
     - [Default `/api/<relation-type>`](#default-apirelation-type)
   - [3.3 Examples](#33-examples)
 - [4. Get object](#4-get-object)
-  - [4.1 GET-Parameters](#41-get-parameters)
-  - [4.2 Results](#42-results)
-    - [XML output: `/api/<object-type>/<object-id>?output=xml`](#xml-output-apiobject-typeobject-idoutputxml)
-    - [JSON output: `/api/<object-type>/<object-id>`](#json-output-apiobject-typeobject-id)
-  - [4.3 Examples](#43-examples)
 - [5. Get part of an object](#5-get-part-of-an-object)
-  - [5.1 GET-Parameters](#51-get-parameters)
-  - [5.2 Results](#52-results)
-    - [JSON output](#json-output)
-  - [5.3 Examples](#53-examples)
 - [6. Searching](#6-searching)
   - [6.1 GET-Parameters](#61-get-parameters)
   - [6.2 Result](#62-result)
@@ -48,6 +38,8 @@ Returns a JSON list with all object IDs to identify by ID which object type a sp
 
 Returns a list of all items of an object type or relation type as JSON.
 
+For the list of objects see the newer [OPENAPI documentation](openapi.xml).
+
 *Attention: Because of performance issues only 10'000 entries are returned.
 If more are requested please use the `limit` parameter.*
 
@@ -56,27 +48,6 @@ If more are requested please use the `limit` parameter.*
 - `object-relation-type` the ID of the object definition or the relation definition in the `appconf.xml`
 
 ### 3.1 GET-Parameters
-
-The following parameters are only for object lists not for relation lists:
-
-- For defined properties GET-parameter can be added. E.g. if `city` is a defined property it is possible to filter the list by adding `city=Berlin`.
-- `from` defines which is the first item to be shown. To be used with `range`.
-- `limit` optional parameter. Defines how many (unordered) object entries are retrieved (default value is 10'000). For relations it defines how many object entries are used for searching the relations.
-- `order` by which the list should be ordered
-- `page` defines which page of list results should be returned. To be used with `range`.
-- `range` how many items should be return. To be used with `page` or `from`.
-- `search` filters the objects by a search. Can be combined with other filters. To be used with `show=(all, compact, list)`.
-- `search-type` optional parameter. To be used with `search`. With following values:
-  - with empty value the exact matches are found. Multiple words are separated with a space.
-  - `regex` for one or more words (separated by space) using regular expressions
-  - `phrase` for a query of multiple words. With `slop` the distance can be defined (default is 1).
-  - `lucene` for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
-- `show` possible values are:
-  - `all` show all objects
-  - `compact` show all objects but in compact form, i.e. without properties
-  - `filter` show the filter definitions
-  - `list` show objects matching the filter criteria
-- `slop` the distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
 
 The following parameters are for relation lists:
 
@@ -88,38 +59,6 @@ The following parameters are for relation lists:
   - empty show all relation items
 
 ### 3.2 Results
-
-#### Default `/api/<object-type>`
-
-- `?date-time` stamp of caching
-- `?filter` list of filters
-- `?filter?("filter-id")` contains the follwing values:
-  - `?id` of filter
-  - `?name` of filter
-  - `?depends` on which other filter
-  - `?n` order number of filter
-  - `?type` of filter
-  - `?xpath` to get the raw filter value
-  - `?label-function` to get the processed filter value
-- `?list` of objects
-- `?list?("object-id")` contains the following values:
-  - `?absolute-resource-id` object
-  - `?id` of object
-  - `?object-type` of object
-  - `?label` main label of object
-  - `?labels` list of labels of object
-  - `?label-filter` values if defined
-  - `?filter` list of object
-  - `?filter?("filter-id")` filter value of object
-  - `?search-results` contains an array of hits, if a search was triggered. Each hit containing:
-    - `?context-previous` of the found keyword
-    - `?keyword` found by search
-    - `?context-following` of the found keyword
-    - `?score` of this single search hit
-  - `?score` of the search if triggered otherwise '0'
-- `?type` equals "object"
-- `?results-found` number of all objects
-- `?results-shown` number of objects in `list`. Equals to `results-found` if equal or lower then the `limit` parameter.
 
 #### Default `/api/<relation-type>`
 
@@ -141,143 +80,23 @@ The following parameters are for relation lists:
 
 ### 3.3 Examples
 
-- manuscript list filtered by repository: `/api/ms?show=list&city=Berlin&repository=Staatsbibliothek`
-- first twenty entries of persons: `/api/persons?show=list&order=label&range=20&page=1`
 - show list of person-manuscript relations: `/api/person-manuscript`
-- show letters from berlin containing the word 'Wetter': `/api/letters?show=list&place=Berlin&search=Wetter`
 
 ## 4. Get object
 
 Returns a information of a single object.
 
+For retrieving an object see the newer [OPENAPI documentation](openapi.xml).
+
 `/api/<object-type>/<object-id>`
-
-### 4.1 GET-Parameters
-
-- `output` possible values are:
-  - `xml` the XML representation of the object is retrieved. Can be used with `view`.
-  - `html` a HTML serialization of the object is retrieved. To be used with `view`.
-  - `text` a text serialization of the object is retrieved. To be used with `view`.
-  - `json-xml` some of the object information is retrieved as JSON, including the XML.
-  - if not set: some object information is retrieved as JSON
-- `view` defines which view (see [APPCONF.md](APPCONF.md)) is used to transform the object. The result is retrieved. To be used with `output`.
-- `search` searches the object.
-- `search-type` optional parameter. To be used with `search`. With following values:
-  - with empty value the exact matches are found. Multiple words are separated with a space.
-  - `regex` for one or more words (separated by space) using regular expressions
-  - `phrase` for a query of multiple words. With `slop` the distance can be defined (default is 1).
-  - `lucene` for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
-- `search-xpath` optional parameter. To be used with `search`. One can specify which xpath-Elements of the object are included in the search.
-- `slop` the distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
-
-### 4.2 Results
-
-#### XML output: `/api/<object-type>/<object-id>?output=xml`
-
-Shows the XML data. If a search was triggered the hits are marked with
-`<exist:match xmlns:exist="http://exist.sourceforge.net/NS/exist">`.
-
-#### JSON output: `/api/<object-type>/<object-id>`
-
-- `?absolute-resource-id` eXist-db specific id of the ressource containing the object
-- `?filter` values of object, see list of objects above.
-- `?id` of object
-- `?label` of object
-- `?labels` of object
-- `?label-filter` of object, see list of objects above.
-- `?inner-nav` of object
-- `?inner-nav?("inner-nav-id")` contains the following values:
-  - `?id` where to find the IDs of items (XPath)
-  - `?label-function` of items (XQuery function)
-  - `?list` of items. The items of the array contain the following values:
-    - `?id` of item
-    - `?label` of item
-  - `?name` of inner-nav
-  - `?order-by` how to order the items. Possible values are
-    - `label` order by label
-    - if not set items are ordered by position in xml
-  - `?xpath` where to find the inner-nav items (XPath)
-- `?object-type` of object
-- `?parts` of object if defined and found
-- `?parts?("part-id")` contains the following values:
-  - `?depends` on which other part definitions
-  - `?id` definition of part id
-  - `?path` full path to part
-  - `?root` definition of part root
-  - `?xmlid` of part
-  - `?("part-id")` contains definition of nested parts
-- `?search-results` contains an array of hits, if a search was triggered. Each hit containing:
-  - `?context-following` of the found keyword
-  - `?context-previous` of the found keyword
-  - `?keyword` found by search
-  - `?score` of this single search hit
-- `?views` contains the defined views for the object
-- `?views?("view-id")` contains the following values:
-  - `?id` of view
-  - `?label` of view
-  - `?params` defined parameters for the view
-  - `?xslt` relative path to view xslt
-
-### 4.3 Examples
-
-- XML representation: `/api/persons/p123456?output=xml`
-- XML output with special view: `/api/letters/l123456?output=xml&view=my_view`
-- JSON information of a person
-  `/api/person/p123456`
-  results in:
-
-  ```json
-  {
-    "absolute-resource-id" : 2869038157266,
-    "label" : "Homer",
-    "id" : "person123456",
-    "inner-nav" : { },
-    "parts" : { },
-    "views" : {
-      "default" : {
-        "xslt" : "resources/xslt/person-details.xsl",
-        "params" : "",
-        "label" : "Details",
-        "id" : "default"
-      },
-      "metadata" : {
-        "xslt" : "resources/xslt/person-metadata.xsl",
-        "params" : "",
-        "label" : "Metadata",
-        "id" : "metadata"
-      }
-    }
-  }
-  ```
 
 ## 5. Get part of an object
 
 Returns a part of a single object as xml.
 
+For retrieving a part of an object see the newer [OPENAPI documentation](openapi.xml).
+
 `/api/<object-type>/<object-id>/<object-part>`
-
-### 5.1 GET-Parameters
-
-No parameters are available.
-
-### 5.2 Results
-
-#### JSON output
-
-
-### 5.3 Examples
-
-- A passage within a text: `/api/persons/p123456?output=xml`
-- A range of pages within a text: `/api/letters/l123456?output=xml&view=my_view`
-- A range of lines within a text: `/api/letters/l123456?output=xml&view=my_view`
-
-/api/pta/urn:cts:pta:pta0004.pta001.pta-MsE?part=book lists all retrievable books
-
-/api/pta/urn:cts:pta:pta0004.pta001.pta-MsE/1 show book number 1
-
-/api/pta/urn:cts:pta:pta0004.pta001.pta-MsE?part=page lists all available pages
-
-
 
 ## 6. Searching
 

@@ -1,0 +1,535 @@
+openapi: '3.0.2'
+info:
+  title: ediarum.WEB API 1.0
+  description: This is the documentation of the ediarum.WEB API.
+  version: '1.0.0'
+servers:
+  - url: /api
+tags:
+  - name: object
+    description: Information about single object
+  - name: object group
+    description: Endpoint to all object of a type
+  - name: search
+    description: Endpoint to search specified indexes
+paths:
+  /api/{object-type}:
+    get:
+      tags:
+        - object group
+        - search
+      summary: List of objects or relations
+      description: |
+        Returns a list of all items of an object type or relation type as JSON.
+
+        *Attention: Because of performance issues only 10'000 entries are returned.
+        If more are requested please use the `limit` parameter.*
+
+        Examples:
+
+        - manuscript list filtered by repository: `/api/ms?show=list&city=Berlin&repository=Staatsbibliothek`
+        - first twenty entries of persons: `/api/persons?show=list&order=label&range=20&page=1`
+        - show letters from berlin containing the word 'Wetter': `/api/letters?show=list&place=Berlin&search=Wetter`
+      parameters:
+        - name: object-type
+          in: path
+          description: ID of the object type
+          required: true
+          schema:
+            type: string
+        - name: \{variable\}
+          in: query
+          description: For defined properties GET-parameter can be added. E.g. if `city` is a defined property it is possible to filter the list by adding `city=Berlin`.
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Defines which is the first item to be shown. To be used with `range`.
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          description: Optional parameter. Defines how many (unordered) object entries are retrieved.
+          schema:
+            type: integer
+            default: 10000
+        - name: order
+          in: query
+          description: By which the list should be ordered
+          schema:
+            type: string # TODO there are some values
+        - name: page
+          in: query
+          description: Defines which page of list results should be returned. To be used with `range`.
+          schema:
+            type: integer
+        - name: range
+          in: query
+          description: How many items should be return. To be used with `page` or `from`.
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Filters the objects by a search. Can be combined with other filters. To be used with `show=(all, compact, list)`.
+          schema:
+            type: string
+        - name: search-type
+          in: query
+          description: To be used with `search`. If not set, the exact matches are found. Multiple words are separated with a space.
+          schema:
+            type: string
+            enum:
+              - regex  # for one or more words (separated by space) using regular expressions
+              - phrase # for a query of multiple words. With `slop` the distance can be defined (default is 1).
+              - lucene # for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
+        - name: show
+          in: query
+          description: What should be retrieved
+          schema:
+            type: string
+            enum:
+              - all # show all objects
+              - compact # show all objects but in compact form, i.e. without properties
+              - filter # show the filter definitions
+              - list # show objects matching the filter criteria
+        - name: slop
+          in: query
+          description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectGroup'
+  /api/{object-type}/{object-id}:
+    get:
+      tags:
+        - object
+        - search
+      summary: Get object
+      description: |
+        Returns a information of a single object.
+
+        Examples:
+
+        - XML representation: `/api/persons/p123456?output=xml`
+        - XML output with special view: `/api/letters/l123456?output=xml&view=my_view`
+        - JSON information of a person: `/api/person/p123456`
+        - JSON list of retrievable chapters: `/api/texts/m41?part=chapter`
+        - XML output of chapter 1: `/api/texts/m41/1`
+      parameters:
+        - name: object-type
+          in: path
+          description: ID of the object type
+          required: true
+          schema:
+            type: string
+        - name: object-id
+          in: path
+          description: ID of the object
+          required: true
+          schema:
+            type: string
+        - name: output
+          in: query
+          description: Defines which object representation is shown. If not set some object information is retrieved as JSON.
+          schema:
+            type: string
+            enum:
+              - xml # the XML representation of the object is retrieved. Can be used with `view`.
+              - html # a HTML serialization of the object is retrieved. To be used with `view`.
+              - text # a text serialization of the object is retrieved. To be used with `view`.
+              - json-xml # some of the object information is retrieved as JSON, including the XML.
+        - name: view
+          in: query
+          description: defines which view (see [APPCONF.md](APPCONF.md)) is used to transform the object. The result is retrieved. To be used with `output`.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/searchTypeParam'
+        - $ref: '#/components/parameters/searchXpathParam'
+        - $ref: '#/components/parameters/slopParam'
+        - $ref: '#/components/parameters/kwicWidthParam'
+        - name: part
+          in: query
+          description: If set the IDs of found passages of this definition are shown.
+          schema:
+            type: string
+          example: book-chapter
+        - name: part-def
+          in: query
+          description: To be used with `search`. Specifies to show to which parts the hits belong to.
+          schema:
+            type: string
+          example: book-chapter-segment
+      responses:
+        '200':
+          description: OK
+          content:
+            application/xml:
+              schema:
+                type: object
+                additionalProperties: true
+                description: Shows the XML data. If a search was triggered the hits are marked with `<exist:match xmlns:exist="http://exist.sourceforge.net/NS/exist">`.
+            application/json:
+              schema:
+                # oneOf:
+                $ref: '#/components/schemas/ObjectExtended'
+                # $ref: '#/components/schemas/PartList'
+  /api/{object-type}/{object-id}/{part-id}:
+    get:
+      tags:
+        - object
+        - search
+      summary: XML snippet for a specified passage in the object
+      description: |
+        
+        Examples:
+
+        - A passage within a text: `/api/texts/M123456/p1.2.7`
+        - A page within a text: `/api/texts/M123456/page-1`
+        - A line within a text: `/api/texts/M123456/page-1.12`
+      parameters:
+        - name: object-type
+          in: path
+          description: ID of the object type
+          required: true
+          schema:
+            type: string
+        - name: object-id
+          in: path
+          description: ID of the object
+          required: true
+          schema:
+            type: string
+        - name: part-id
+          in: path
+          description: ID of the object
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/searchTypeParam'
+        - $ref: '#/components/parameters/searchXpathParam'
+        - $ref: '#/components/parameters/slopParam'
+        - $ref: '#/components/parameters/kwicWidthParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/xml:
+              schema:
+                type: object
+                additionalProperties: true
+                description: Shows the XML data. If a search was triggered the hits are marked with `<exist:match xmlns:exist="http://exist.sourceforge.net/NS/exist">`.
+              example: |
+                <TEI xmlns="http://www.tei-c.org/ns/1.0" xml:space="preserve" xml:lang="en">
+                  <text>
+                    <body>
+                      <div type="edition" n="text-01234">
+                        <div type="book" n="2">
+                          <div type="chapter" n="1">
+                            <p>
+                              <seg n="4"> Here is some text. All <exist:match xmlns:exist="http://exist.sourceforge.net/NS/exist">hits</exist:match> are marked.</seg>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </body>
+                  </text>
+                </TEI>
+components:
+  schemas:
+    ObjectGroup:
+      type: object
+      properties:
+        date-time:
+          type: string
+          format: date-time
+          description: stamp of caching
+        filter:
+          type: object
+          description: list of filters
+          additionalProperties:
+            $ref: '#/components/schemas/Filter'
+        list:
+          type: object
+          description: of objects
+          additionalProperties:
+            $ref: '#/components/schemas/Object'
+        type:
+          type: string
+          description: equals "object group"
+          example: manuscripts
+        results-found:
+          type: integer
+          description: number of all objects
+          example: 704
+        results-shown:
+          type: integer
+          description: number of objects in `list`. Equals to `results-found` if equal or lower then the `limit` parameter
+          example: 12
+    Filter:
+      type: object
+      properties:
+        id:
+          type: string
+          description: id of filter
+          example: library
+        name:
+          type: string
+          description: description of filter
+          example: Library which holds the manuscript
+        depends:
+          type: string
+          description: on which other filter it depends
+          example:
+        n:
+          type: integer
+          description: order number of filter
+        type:
+          type: string
+          description: type of filter
+          example: single
+        xpath:
+          type: string
+          description: to get the raw filter value
+          example: tei:repository
+        label-function:
+          type: string
+          description: function to get the processed filter value
+          example: function($string) { $string }
+    Object:
+      type: object
+      properties:
+        absolute-resource-id:
+          type: integer
+          description: object
+          example: 7096865764654
+        id:
+          type: string
+          description: of object
+          example: M012345
+        label:
+          type: string
+          description: main label of object
+          example: Manuscript No. 012345
+        label-filter:
+          type: array
+          description: values if defined
+          items:
+            type: string
+        labels:
+          type: array
+          description: list of labels of object
+          items:
+            type: string
+          example: [Manuscript No. 012345, Letter to myself]
+        filter:
+          type: object
+          description: list of object properties
+          properties:
+            id:
+              type: string
+              example: M012345
+          required:
+            - "id"
+          additionalProperties:
+            type: string
+        object-type:
+          type: string
+          description: type of object
+          example: manuscripts
+        search-results:
+          type: array
+          description: contains an array of hits, if a search was triggered.
+          items:
+            type: object
+            properties:
+              context-previous:
+                type: string
+                description: of the found keyword
+                example: "...n the text the searched "
+              keyword:
+                type: string
+                description: found by search
+                example: "word"
+              context-following:
+                type: string
+                description: of the found keyword
+                example: " is be found. And th..."
+              score:
+                type: number
+                format: float
+                description: of this single search hit
+                example: 0.26706398
+              part-id:
+                type: string
+                description: The ID of the related passage. Only retrieved by object API with `part-def` parameter.
+                example: book-1.2.7
+        score:
+          type: string
+          description: score of the search if triggered otherwise '0'
+          example: 0
+    ObjectExtended:
+      allOf:
+        - $ref: '#/components/schemas/Object'
+        - type: object
+          properties:
+            inner-nav:
+              type: object
+              description: list of defined inner navigations
+              additionalProperties:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Where to find the IDs of items (XPath)
+                    example: "@xml:id"
+                  label-function:
+                    type: string
+                    description: label function of items (XQuery function)
+                    example: function($node) { $node/string() }
+                  list:
+                    type: array
+                    description: List of items.
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: ID of item
+                          example: bibliography
+                        label:
+                          type: string
+                          description: of item
+                          example: Bibliography
+                  name:
+                    type: string
+                    description: Name of inner-nav
+                    example: Content
+                  order-by:
+                    type: string
+                    description: how to order the items. If not set items are ordered by position in xml.
+                    enum:
+                      - label # order by label
+                  xpath:
+                    type: string
+                    description: Where to find the inner-nav items (XPath)
+                    example: tei:div[@type='main']
+            parts:
+              type: object
+              description: part definitions of object
+              additionalProperties:
+                type: object
+                properties:
+                  depends:
+                    type: string
+                    description: On which other part definitions
+                    example: book
+                  id:
+                    type: string
+                    description: Definition of part id
+                    example: "@n"
+                  path:
+                    type: string
+                    description: Full path to part
+                    example: book-<book>.<chapter>
+                  root:
+                    type: string
+                    description: Definition of part root
+                    example: "tei:div[@type='chapter']"
+                  xmlid:
+                    type: string
+                    description: xml:id of part
+                    example: book-chapter
+            views:
+              type: object
+              description: Contains the defined views of the object.
+              additionalProperties:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: ID of view
+                    example: simple-view
+                  label:
+                    type: string
+                    description: Label of view
+                    example: Simple
+                  params:
+                    type: string
+                    description: Defined parameter names for the view, separated bx ` `.
+                    example: hightlight-persons
+                  xslt:
+                    type: string
+                    description: Relative path to view xslt
+                    example: resources/xslt/simple-view.xslt
+    PartList:
+      type: object
+      properties:
+        root:
+          type: string
+          description: XPath root of the part
+          example: tei:seg
+        path:
+          type: string
+          description: ID template for parts of this type
+          example: book-<book>.<book-chapter>.<book-chapter-segment>
+        depends:
+          type: string
+          description: The name of the hierarchical higher part
+          example: book-chapter
+        xmlid:
+          type: string
+          description: ID of the part definition
+          example: book-chapter-segment
+        id:
+          type: string
+          description: X-Path to the part id
+          example: "@n"
+        list:
+          type: array
+          items:
+            type: string
+            description: ID of an existing part
+          example: [ "book-1.1.1", "book-1.1.2", "book-1.1.3" ]
+  parameters:
+    searchParam:
+      name: search
+      in: query
+      description: Query expression to search within the object.
+      schema:
+        type: string
+    searchTypeParam:
+      name: search-type
+      in: query
+      description: To be used with `search`. If not set the exact matches are found. Multiple words are separated with a space.
+      schema:
+        type: string
+        enum:
+          - regex # for one or more words (separated by space) using regular expressions
+          - phrase # for a query of multiple words. With `slop` the distance can be defined (default is 1).
+          - lucene # for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
+    searchXpathParam:
+      name: search-xpath
+      in: query
+      description: To be used with `search`. One can specify which xpath-Elements of the object are included in the search. They must be indexed, see [APPCONF.md](APPCONF.md).
+      schema:
+        type: string
+    slopParam:
+      name: slop
+      in: query
+      description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
+      schema:
+        type: integer
+    kwicWidthParam:
+      name: kwic-width
+      in: query
+      description: The range of characters shown before and after the match in the hit.
+      schema:
+        type: integer
+      example: 20
