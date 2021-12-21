@@ -458,6 +458,7 @@ declare function edwebapi:get-object-with-search(
     $app-target as xs:string,
     $object-type as xs:string,
     $object-id as xs:string,
+    $part as xs:string?,
     $kwic-width as xs:string?,
     $search-xpath as xs:string,
     $search-query as xs:string,
@@ -470,7 +471,7 @@ declare function edwebapi:get-object-with-search(
 
     (: Search :)
     let $init-indices := local:init-search-indices($app-target)
-    let $kwic-width := 
+    let $kwic-width :=
         if ($kwic-width||"" = "")
         then "30"
         else $kwic-width
@@ -482,11 +483,11 @@ declare function edwebapi:get-object-with-search(
     let $query := edwebapi:build-search-query($search-query, $search-type, $slop)
 
     let $query-function := ".[.//"||$search-xpath||"[ft:query(., $query)]]"
-    let $search-score as xs:float := 
+    let $search-score as xs:float :=
         if ($search-xpath||$search-query||"" != "")
         then xs:float(ft:score($xml))
         else xs:float(0.0)
-    let $search-hits := 
+    let $search-hits :=
         if ($search-xpath||$search-query||"" != "")
         then util:eval-inline($xml, $query-function)
         else ()
@@ -496,22 +497,28 @@ declare function edwebapi:get-object-with-search(
         else $xml
 
     let $map := edwebapi:get-object($app-target, $object-type, $object-id)
-    return 
-        map:merge(( 
+    let $parts-def := $object-def//appconf:parts
+    let $part-def := $parts-def//appconf:part[@xml:id eq $part]
+    return
+        map:merge((
             $map,
             map:entry("xml", $xml),
-            map:entry( 
+            map:entry(
                 "search-results",
                 for $hit in $search-hits
                 let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
                 (: TODO delete following line? :)
                 for $item at $pos in $kwic
-                return 
-                    map:merge (( 
+                let $match := ($xml//exist:match)[position() = $pos]
+                return
+                    map:merge ((
                         map:entry("context-previous", $kwic[$pos]/span[@class='previous']/string()),
                         map:entry("keyword", $kwic[$pos]/span[@class='hi']/string()),
                         map:entry("context-following", $kwic[$pos]/span[@class='following']/string()),
-                        map:entry("score", ft:score($hit))
+                        map:entry("score", ft:score($hit)),
+                        if ($part-def)
+                        then map:entry("part-id", local:find-part-id-for-node($parts-def, $part-def, $match))
+                        else ()
                     ))
             ),
             map:entry("score", $search-score)
@@ -522,7 +529,7 @@ declare function edwebapi:build-search-query(
     $search-query as xs:string,
     $search-type as xs:string?,
     $slop as xs:string?
-) as node()
+) as item()
 {
     let $query :=
         switch ($search-type)
@@ -550,6 +557,49 @@ declare function edwebapi:build-search-query(
         else
             <query>{$query}</query>
     return $query
+};
+
+declare function local:find-part-id-for-node(
+    $parts-def as node(),
+    $part-def as node(),
+    $match as node()
+) as xs:string?
+{
+    let $super-part-def := $part-def/parent::appconf:part
+    (: Suche den Part-Knoten mit ID. :)
+    let $part-xpath-root := $part-def/appconf:root/string()
+    let $part-node := util:eval("$match/(ancestor::"||$part-xpath-root||" | preceding::"||$part-xpath-root||")[last()]")
+    let $part-xpath-id := $part-def/appconf:id/string()
+    let $part-id := util:eval("$part-node/"||$part-xpath-id)
+    let $separator := $parts-def/@separator/string()
+    let $starts-with :=
+        if ($part-def/@starts-with)
+        then $part-def/@starts-with||$parts-def/@prefix
+        else ""
+    return
+        (: 1. Wenn es keinen super-part gibt, .. :)
+        if (count($super-part-def) = 0)
+        (: .. dann ancestor/preceding als id :)
+        then
+            $starts-with||$part-id
+        (: 2. Wenn es einen super-part gibt, .. :)
+        else
+            let $super-part-xpath-root := $super-part-def/appconf:root/string()
+            let $super-part-xpath-id := $super-part-def/appconf:id/string()
+            (: .. suche super-part von xml-node .. :)
+            let $super-part-node-1 := util:eval("$match/(ancestor::"||$super-part-xpath-root||" | preceding::"||$super-part-xpath-root||")[last()]")
+            let $super-part-id-1 := util:eval("$super-part-node-1/"||$super-part-xpath-id)
+            (: .. und super-part von part-node aus. :)
+            let $super-part-node-2 := util:eval("$part-node/(ancestor::"||$super-part-xpath-root||" | preceding::"||$super-part-xpath-root||")[last()]")
+            let $super-part-id-2 := util:eval("$super-part-node-2/"||$super-part-xpath-id)
+            return
+                (: Sind sie identisch, .. :)
+                if ($super-part-id-1 = $super-part-id-2)
+                (: .. ist part valide und nimm part-id und gehe rekursiv weiter. :)
+                then
+                    local:find-part-id-for-node($parts-def, $super-part-def, $part-node)||$separator||$starts-with||$part-id
+                (: Sonst ist part invalide und kein Treffer. :)
+                else ()
 };
 
 declare function edwebapi:get-object-xml(

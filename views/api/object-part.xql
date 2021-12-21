@@ -103,7 +103,23 @@ let $object-type := request:get-parameter("object-type", request:get-attribute("
 let $object-id := request:get-parameter("object-id", request:get-attribute("object-id"))
 let $object-part := request:get-parameter("object-part", request:get-attribute("object-part"))
 
-let $map := edwebapi:get-object($app-target, $object-type, $object-id)
+
+let $search-query := request:get-parameter("search", request:get-attribute("search"))
+let $search-type := request:get-parameter("search-type", request:get-attribute("search-type"))
+let $search-xpath := request:get-parameter("search-xpath", request:get-attribute("search-xpath"))
+let $search-xpath :=
+    if ($search-xpath||"" eq "")
+    then "."
+    else $search-xpath
+let $slop := request:get-parameter("slop", request:get-attribute("slop"))
+let $kwic-width := request:get-parameter("kwic-width", request:get-attribute("kwic-width"))
+
+let $map :=
+    if ($search-query||"" != "")
+    then
+        edwebapi:get-object-with-search($app-target, $object-type, $object-id, (), $kwic-width, $search-xpath, $search-query, $search-type, $slop)
+    else
+        edwebapi:get-object($app-target, $object-type, $object-id)
 let $object := $map("xml")
 
 let $parts :=

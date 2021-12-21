@@ -21,6 +21,7 @@ let $search-xpath :=
     else $search-xpath
 let $slop := request:get-parameter("slop", request:get-attribute("slop"))
 let $kwic-width := request:get-parameter("kwic-width", request:get-attribute("kwic-width"))
+let $part-def := request:get-parameter("part-def", request:get-attribute("part-def"))
 
 let $part := request:get-parameter("part", request:get-attribute("part"))
 let $output := request:get-parameter("output", request:get-attribute("output"))
@@ -28,7 +29,7 @@ let $output := request:get-parameter("output", request:get-attribute("output"))
 let $map :=
     if ($search-query||"" != "")
     then
-        edwebapi:get-object-with-search($app-target, $object-type, $object-id, $kwic-width, $search-xpath, $search-query, $search-type, $slop)
+        edwebapi:get-object-with-search($app-target, $object-type, $object-id, $part-def, $kwic-width, $search-xpath, $search-query, $search-type, $slop)
     else
         edwebapi:get-object($app-target, $object-type, $object-id)
 

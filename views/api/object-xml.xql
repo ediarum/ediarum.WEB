@@ -43,7 +43,7 @@ let $view := request:get-parameter("view", request:get-attribute("view"))||""
 let $map :=
     if ($search-query||"" != "")
     then
-        edwebapi:get-object-with-search($app-target, $object-type, $object-id, $kwic-width, $search-xpath, $search-query, $search-type, $slop)
+        edwebapi:get-object-with-search($app-target, $object-type, $object-id, (), $kwic-width, $search-xpath, $search-query, $search-type, $slop)
     else
         edwebapi:get-object($app-target, $object-type, $object-id)
 
