@@ -9,12 +9,12 @@ import module namespace edwebcontroller="http://www.bbaw.de/telota/software/edia
 
 import module namespace templates="http://exist-db.org/xquery/templates";
 import module namespace console="http://exist-db.org/xquery/console";
+import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
 declare namespace repo="http://exist-db.org/xquery/repo";
 declare namespace expath="http://expath.org/ns/pkg";
 declare namespace tei="http://www.tei-c.org/ns/1.0";
-declare namespace functx = "http://www.functx.com";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace test="http://exist-db.org/xquery/xqsuite";
 declare namespace http="http://expath.org/ns/http-client";
@@ -25,15 +25,6 @@ declare variable $edweb:projects-collection := "/db/projects";
 declare variable $edweb:param-separator := ";"; 
 declare variable $edweb:view-uri-label-separator := ":l:"; 
 declare variable $edweb:view-view-separator := "::v::"; 
-
-declare function functx:get-matches-and-non-matches($string as xs:string?, $regex as xs:string) as element()* { let $iomf := functx:index-of-match-first($string, $regex) return if (empty($iomf)) then <non-match>{$string}</non-match> else if ($iomf > 1) then (<non-match>{substring($string,1,$iomf - 1)}</non-match>, functx:get-matches-and-non-matches( substring($string,$iomf),$regex)) else let $length := string-length($string) - string-length(functx:replace-first($string, $regex,'')) return (<match>{substring($string,1,$length)}</match>, if (string-length($string) > $length) then functx:get-matches-and-non-matches(substring($string,$length + 1),$regex) else ()) };
-declare function functx:index-of-match-first($arg as xs:string?, $pattern as xs:string) as xs:integer? { if (matches($arg,$pattern)) then string-length(tokenize($arg, $pattern)[1]) + 1 else () };
-declare function functx:pad-integer-to-length($integerToPad as xs:anyAtomicType?, $length as xs:integer) as xs:string { if ($length < string-length(string($integerToPad))) then error(xs:QName('functx:Integer_Longer_Than_Length')) else concat (functx:repeat-string( '0',$length - string-length(string($integerToPad))), string($integerToPad)) };
-declare function functx:replace-first($arg as xs:string?, $pattern as xs:string, $replacement as xs:string) as xs:string { replace($arg, concat('(^.*?)', $pattern), concat('$1',$replacement)) };
-declare function functx:repeat-string($stringToRepeat as xs:string?, $count as xs:integer) as xs:string { string-join((for $i in 1 to $count return $stringToRepeat), '')};
-declare function functx:atomic-type( $values as xs:anyAtomicType* )  as xs:string* { for $val in $values return (if ($val instance of xs:untypedAtomic) then 'xs:untypedAtomic' else if ($val instance of xs:anyURI) then 'xs:anyURI' else if ($val instance of xs:ENTITY) then 'xs:ENTITY' else if ($val instance of xs:ID) then 'xs:ID' else if ($val instance of xs:NMTOKEN) then 'xs:NMTOKEN' else if ($val instance of xs:language) then 'xs:language' else if ($val instance of xs:NCName) then 'xs:NCName' else if ($val instance of xs:Name) then 'xs:Name' else if ($val instance of xs:token) then 'xs:token' else if ($val instance of xs:normalizedString) then 'xs:normalizedString' else if ($val instance of xs:string) then 'xs:string' else if ($val instance of xs:QName) then 'xs:QName' else if ($val instance of xs:boolean) then 'xs:boolean' else if ($val instance of xs:base64Binary) then 'xs:base64Binary' else if ($val instance of xs:hexBinary) then 'xs:hexBinary' else if ($val instance of xs:byte) then 'xs:byte' else if ($val instance of xs:short) then 'xs:short' else if ($val instance of xs:int) then 'xs:int' else if ($val instance of xs:long) then 'xs:long' else if ($val instance of xs:unsignedByte) then 'xs:unsignedByte' else if ($val instance of xs:unsignedShort) then 'xs:unsignedShort' else if ($val instance of xs:unsignedInt) then 'xs:unsignedInt' else if ($val instance of xs:unsignedLong) then 'xs:unsignedLong' else if ($val instance of xs:positiveInteger) then 'xs:positiveInteger' else if ($val instance of xs:nonNegativeInteger) then 'xs:nonNegativeInteger' else if ($val instance of xs:negativeInteger) then 'xs:negativeInteger' else if ($val instance of xs:nonPositiveInteger) then 'xs:nonPositiveInteger' else if ($val instance of xs:integer) then 'xs:integer' else if ($val instance of xs:decimal) then 'xs:decimal' else if ($val instance of xs:float) then 'xs:float' else if ($val instance of xs:double) then 'xs:double' else if ($val instance of xs:date) then 'xs:date' else if ($val instance of xs:time) then 'xs:time' else if ($val instance of xs:dateTime) then 'xs:dateTime' else if ($val instance of xs:dayTimeDuration) then 'xs:dayTimeDuration' else if ($val instance of xs:yearMonthDuration) then 'xs:yearMonthDuration' else if ($val instance of xs:duration) then 'xs:duration' else if ($val instance of xs:gMonth) then 'xs:gMonth' else if ($val instance of xs:gYear) then 'xs:gYear' else if ($val instance of xs:gYearMonth) then 'xs:gYearMonth' else if ($val instance of xs:gDay) then 'xs:gDay' else if ($val instance of xs:gMonthDay) then 'xs:gMonthDay' else 'unknown')};
-declare %test:args("abc123def", "\d") %test:assertEquals("1", "2", "3") function functx:get-matches ($string as xs:string?, $regex as xs:string) as xs:string* { functx:get-matches-and-non-matches($string,$regex)/self::match/string() };
-declare function functx:escape-for-regex ($arg as xs:string?) as xs:string { replace($arg, '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1') };
 
 (: ADD funcctions returning complete html nodes :)
 

@@ -6,12 +6,12 @@ xquery version "3.1";
 module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
 import module namespace console="http://exist-db.org/xquery/console";
+import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
 declare namespace repo="http://exist-db.org/xquery/repo";
 declare namespace expath="http://expath.org/ns/pkg";
 declare namespace tei="http://www.tei-c.org/ns/1.0";
-declare namespace functx = "http://www.functx.com";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace test="http://exist-db.org/xquery/xqsuite";
 declare namespace http="http://expath.org/ns/http-client";
@@ -23,30 +23,6 @@ declare namespace map="http://www.w3.org/2005/xpath-functions/map";
 declare variable $edwebcontroller:controller := "/ediarum.web";
 declare variable $edwebcontroller:edweb-path := "/db/apps/ediarum.web";
 declare variable $edwebcontroller:allowed-pattern-chars := "[.@:_\-\p{L}0-9]+";
-
-declare function functx:escape-for-regex($arg as xs:string?) as xs:string {replace($arg,
-    '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1')};
-declare function functx:get-matches($string as xs:string?, $regex as xs:string) as xs:string* {
-    functx:get-matches-and-non-matches($string,$regex)/string(self::match)};
-declare function functx:get-matches-and-non-matches($string as xs:string?, $regex as xs:string) as 
-    element()* {let $iomf := functx:index-of-match-first($string, $regex)return if (empty($iomf))
-    then <non-match>{$string}</non-match>else if ($iomf > 1)then (<non-match>{substring($string,1,
-    $iomf - 1)}</non-match>,functx:get-matches-and-non-matches(substring($string,$iomf),$regex))else
-    let $length :=string-length($string)-string-length(functx:replace-first($string, $regex,''))
-    return (<match>{substring($string,1,$length)}</match>,if (string-length($string) > $length)
-    then functx:get-matches-and-non-matches(substring($string,$length + 1),$regex)else ())};
-declare function functx:index-of-match-first($arg as xs:string?, $pattern as xs:string) as 
-    xs:integer? {if (matches($arg,$pattern))then string-length(tokenize($arg, $pattern)[1]) + 1 
-    else ()};
-declare function functx:pad-integer-to-length($integerToPad as xs:anyAtomicType?, $length as 
-    xs:integer) as xs:string {if ($length < string-length(string($integerToPad)))then error(
-    xs:QName('functx:Integer_Longer_Than_Length'))else concat(functx:repeat-string('0',$length 
-    - string-length(string($integerToPad))),string($integerToPad))};
-declare function functx:replace-first($arg as xs:string?, $pattern as xs:string, $replacement as 
-    xs:string) as xs:string {replace($arg, concat('(^.*?)', $pattern),concat('$1',$replacement))};
-declare function functx:repeat-string($stringToRepeat as xs:string?, $count as xs:integer) as 
-    xs:string {string-join((for $i in 1 to $count return $stringToRepeat), '')
-};
 
 (:~
  : This function implements the routing for the api.

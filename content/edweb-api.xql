@@ -7,10 +7,10 @@ module namespace edwebapi="http://www.bbaw.de/telota/software/ediarum/web/api";
 
 import module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 import module namespace kwic="http://exist-db.org/xquery/kwic";
+import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
 declare namespace expath="http://expath.org/ns/pkg";
-declare namespace functx = "http://www.functx.com";
 declare namespace http="http://expath.org/ns/http-client";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace tei="http://www.tei-c.org/ns/1.0";
@@ -23,17 +23,6 @@ declare variable $edwebapi:projects-collection := "/db/projects";
 (: See also $edweb:param-separator. :)
 declare variable $edwebapi:param-separator := ";";
 declare variable $edwebapi:object-limit := 10000;
-
-declare function functx:change-element-ns-deep($element as element(), $newns as xs:string) as element() {let $newName := QName($newns, name($element)) return (element {$newName} {$element/@*, for $child in $element/node() return if ($child instance of element()) then functx:change-element-ns-deep($child, $newns) else $child})};
-declare function functx:escape-for-regex($arg as xs:string?) as xs:string {replace($arg, '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1')};
-declare function functx:get-matches-and-non-matches($string as xs:string?, $regex as xs:string) as element()* {let $iomf := functx:index-of-match-first($string, $regex)return if (empty($iomf))then <non-match>{$string}</non-match>else if ($iomf > 1)then (<non-match>{substring($string,1,$iomf - 1)}</non-match>,functx:get-matches-and-non-matches(substring($string,$iomf),$regex))else let $length :=string-length($string)-string-length(functx:replace-first($string, $regex,''))return (<match>{substring($string,1,$length)}</match>,if (string-length($string) > $length)then functx:get-matches-and-non-matches(substring($string,$length + 1),$regex)else ())};
-declare function functx:index-of-match-first($arg as xs:string?, $pattern as xs:string) as xs:integer? {if (matches($arg,$pattern))then string-length(tokenize($arg, $pattern)[1]) + 1 else ()};
-declare function functx:is-node-in-sequence-deep-equal($node as node()?, $seq as node()*) as xs:boolean {some $nodeInSeq in $seq satisfies deep-equal($nodeInSeq,$node)};
-declare function functx:pad-integer-to-length($integerToPad as xs:anyAtomicType?, $length as xs:integer) as xs:string {if ($length < string-length(string($integerToPad)))then error(xs:QName('functx:Integer_Longer_Than_Length'))else concat(functx:repeat-string('0',$length - string-length(string($integerToPad))),string($integerToPad))};
-declare function functx:replace-first($arg as xs:string?, $pattern as xs:string, $replacement as xs:string) as xs:string {replace($arg, concat('(^.*?)', $pattern),concat('$1',$replacement))};
-declare function functx:repeat-string($stringToRepeat as xs:string?, $count as xs:integer) as xs:string {string-join((for $i in 1 to $count return $stringToRepeat), '')};
-declare function functx:substring-after-last($arg as xs:string?, $delim as xs:string) as xs:string {replace ($arg,concat('^.*',functx:escape-for-regex($delim)),'')};
-declare function functx:substring-before-last($arg as xs:string?, $delim as xs:string) as xs:string {if (matches($arg, functx:escape-for-regex($delim))) then replace($arg, concat('^(.*)', functx:escape-for-regex($delim),'.*'), '$1') else ''};
 
 (:~
  : 
@@ -280,12 +269,12 @@ declare function edwebapi:load-map-from-cache(
         then ()
         else xmldb:create-collection($app-target, $edwebapi:cache-collection)
     let $cache-file-name := substring-after($function-name, ":")||"-"
-        ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".json"
-    let $load-cache := util:binary-doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)
+        ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".xml"
+    let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
     let $cache-exists := exists($load-cache)
     let $load-map := 
         if($cache-exists) 
-        then parse-json(util:binary-to-string($load-cache))
+        then parse-json($load-cache)
         else false()
     let $current-date-time := current-dateTime()            
     let $cache-is-new :=
@@ -309,15 +298,15 @@ declare function edwebapi:load-map-from-cache(
         then ()
         else
             let $map := apply($function, $params)
-            return xmldb:store($app-target||"/"||$edwebapi:cache-collection, $cache-file-name, serialize($map,
+            return xmldb:store($app-target||"/"||$edwebapi:cache-collection, $cache-file-name, <json>{serialize($map,
                 <output:serialization-parameters><output:method>json</output:method>
-                </output:serialization-parameters>))
+                </output:serialization-parameters>)}</json>)
     let $load-map := 
         if ($load-from-cache)
         then $load-map
         else 
-            let $load-cache := util:binary-doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)
-            return parse-json(util:binary-to-string($load-cache))
+            let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
+            return parse-json($load-cache)
     return $load-map
 };
 
@@ -1365,7 +1354,7 @@ declare function local:init-search-indices(
     let $objects := $config//appconf:object[appconf:collection = $collection]
     let $index := 
         for $obj in $objects[appconf:lucene] 
-        return $obj/appconf:lucene/functx:change-element-ns-deep(., $xconf-ns)
+        return $obj/appconf:lucene/functx:change-element-ns-deep(., $xconf-ns, '')
 
     let $index-updated :=
         (: IF INDEX FOUND UPDATE INDEX :)
