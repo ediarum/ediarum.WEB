@@ -1178,7 +1178,18 @@ declare function edweb:view-expand-links(
     $error-function as function(*)?
 ) as node()
 {
-    let $link-list := edwebcontroller:api-get("/api?id-type=all")
+    let $link-list := edwebcontroller:api-get("/api?id-type=complete")
+    let $current-id := request:get-attribute("id")
+    let $set-referer :=
+        if ($current-id||"" != "")
+        then 
+            let $object := $link-list?($current-id)
+            let $object-type := $object?object-type
+            let $id-types := edwebcontroller:api-get("/api")//appconf:object[@xml:id=$object-type]//appconf:filter[appconf:type="id"]/@xml:id/string()
+            let $ids := for $id-type in $id-types return $id-type||":"||$object?filter?($id-type)
+            return
+                "?ref="||string-join(($current-id, $ids),'+')
+        else ""
     let $error-f := 
         if ($error-function instance of function(*)) 
         then $error-function
@@ -1189,7 +1200,7 @@ declare function edweb:view-expand-links(
                     "There is no object with id: "||$href
                 )
             }
-    return local:view-expand-links($node, $link-list, $error-f)
+    return local:view-expand-links($node, $link-list, $set-referer, $error-f)
 };
 
 
@@ -1197,8 +1208,9 @@ declare function edweb:view-expand-links(
  :
  :)
 declare function local:view-expand-links(
-    $node as node(), 
-    $link-list as map(), 
+    $node as node(),
+    $link-list as map(),
+    $set-referer as xs:string,
     $error-function as function(*)
 ) as node()
 {
@@ -1221,11 +1233,6 @@ declare function local:view-expand-links(
             else if (starts-with($attribute, "$id/")) 
             then
                 try {
-                    let $current-id := request:get-attribute("id")
-                    let $set-referer :=
-                        if ($current-id||"" != "")
-                        then "?ref="||$current-id
-                        else ""
                     let $key-id :=
                         if (matches($attribute,'#'))
                         then substring-before(substring-after($attribute, "$id/"),'#')
@@ -1235,37 +1242,67 @@ declare function local:view-expand-links(
                         then "#"||substring-after($attribute, '#')
                         else ""
                     return
-                    if (map:contains($link-list, $key-id))
-                    then substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                        if (map:contains($link-list, $key-id))
+                        then
+                            substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                             ||edwebcontroller:get-exist-controller()||"/"
                             ||$link-list?($key-id)?object-type
                             ||"/"||$key-id||$set-referer
                             ||$anchor
-                    else $error-function($attribute)
+                        else
+                            $error-function($attribute)
+                }
+                catch * {
+                    $error-function($attribute)
+                }
+else if (starts-with($attribute, "$id-type(")) 
+            then
+                try {
+                    let $id-type := substring-after(substring-before($attribute, ")/"), "$id-type(")
+                    let $key-id :=
+                        if (matches($attribute,'#'))
+                        then substring-before(substring-after($attribute, "$id-type("||$id-type||")/"),'#')
+                        else substring-after($attribute, "$id-type("||$id-type||")/")
+                    let $anchor :=
+                        if (matches($attribute,'#'))
+                        then "#"||substring-after($attribute, '#')
+                        else ""
+                    let $object := $link-list?*[?filter?($id-type)=$key-id][1]
+                    return
+                        if (not(empty($object)))
+                        then
+                            substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                            ||edwebcontroller:get-exist-controller()||"/"
+                            ||$object?object-type
+                            ||"/"||$object?id||$set-referer
+                            ||$anchor
+                        else
+                            $error-function($attribute)
                 }
                 catch * {
                     $error-function($attribute)
                 }
             else $attribute
         return
-            if ($node/@href) 
+            if ($node/@href)
             then
                 element { node-name($node) } {
                     attribute href { $expanded },
-                    $node/@* except $node/@href, 
-                    let $href-id := substring-after($attribute, "$id/") 
-                    let $referer := request:get-parameter("ref", request:get-attribute("ref"))
+                    $node/@* except $node/@href,
+                    let $href-id := substring-after($attribute, "$id/")
+                    let $href-id-type := replace(substring-after($attribute, "$id-type("),'\)/',':')
+                    let $referer := tokenize(request:get-parameter("ref", request:get-attribute("ref")),' ')
                     return
-                    if ($href-id=$referer)
+                    if ($href-id=$referer or $href-id-type=$referer)
                     then
                         element span {
                             attribute class { "referer" },
                             for $child in $node/node() 
-                            return local:view-expand-links($child, $link-list, $error-function)
+                            return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                         }
                     else
                         for $child in $node/node() 
-                        return local:view-expand-links($child, $link-list, $error-function)
+                        return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                 }
             else if ($node/@src)
             then
@@ -1273,13 +1310,13 @@ declare function local:view-expand-links(
                     attribute src { $expanded },
                     $node/@* except $node/@src, 
                     for $child in $node/node() 
-                    return local:view-expand-links($child, $link-list, $error-function)
+                    return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                 }
             else
                 element { node-name($node) } {
                     $node/@*, 
                     for $child in $node/node() 
-                    return local:view-expand-links($child, $link-list, $error-function)
+                    return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                 }
     else if ($node instance of text()) 
     then $node

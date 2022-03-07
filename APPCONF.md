@@ -437,9 +437,17 @@ The basic information for an relation type defines where to find the relations i
 The subject and object conditions are used to define how to link a specific subject and object to a relation:
 
 - `subject-condition` a XQuery function which must return true if an entity is equal to the subject of the relation.
+  - `subject-condition@type` optional with following values:
+    - `id` define a xpath-expression of the relation to compare with the subject ids.
+    - `id-type` define a xpath-expression of the relation to compare with subject id properties.
+    - `resource` defines that the relation node is contained by the same resource as the subject.
 - `object-condition` a XQuery function which must return true if an entity is equal to the object of the relation.
+  - `object-condition@type` optional with following values:
+    - `id` define a xpath-expression of the relation to compare with the object ids.
+    - `id-type` define a xpath-expression of the relation to compare with object id properties.
+    - `resource` defines that the relation node is contained by the same resource as the subject.
 
-Both XQuery function have the form:
+Both XQuery functions (if `@type` is omitted) have the form:
 
 ```
 function ($this as map(*), $subject as map(*)) as xs:boolean

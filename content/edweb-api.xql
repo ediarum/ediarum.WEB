@@ -755,6 +755,51 @@ declare function edwebapi:eval-filters-for-object(
         ))
 };
 
+declare function edwebapi:eval-id-filters-for-object(
+    $app-target as xs:string,
+    $object-def as node(),
+    $object as map(*),
+    $object-xml as node()
+) as map(*)
+{
+    let $cache := ""
+    let $filters := $object-def/appconf:filters/appconf:filter[appconf:type="id"]
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $filter-values :=
+        for $f in $filters
+        let $filter-id := $f/@xml:id/string()
+        let $filter-objects :=
+            if (ends-with($f/appconf:xpath/string(),')'))
+            then
+                util:eval-inline($object-xml, $f/appconf:xpath/string())
+            else if (ends-with($f/appconf:xpath/string(),']'))
+            then
+                util:eval-inline($object-xml, $f/appconf:xpath/string())
+            else
+                try {
+                    util:eval-inline($object-xml, $f/appconf:xpath/string()||"/normalize-space()")
+                }
+                catch * {
+                    util:eval-inline($object-xml, $f/appconf:xpath/string())
+                }
+        let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
+        return 
+            map:entry(
+                $filter-id, 
+                for $fo in $filter-objects 
+                return $filter-label-function($fo)
+            )
+    let $filter-values :=
+        (
+            $filter-values,
+            map:entry("id", $object?id)
+        )
+    return 
+        map:merge ((
+            map:entry("filter", map:merge(( $filter-values )) )
+        ))
+};
+
 (:~
  : The function retrieves objects from the data.
  :
@@ -947,11 +992,13 @@ declare function edwebapi:get-object-list-without-filter(
     let $objects := 
         for $object in $objects-xml[position() <= $limit]
         let $object-map := edwebapi:eval-base-data-for-object($object-def, $object)
+        let $id-filter-map := edwebapi:eval-id-filters-for-object($app-target, $object-def, $object-map, $object)
         return 
             map:entry(
                 $object-map?id,
                 map:merge(( 
-                    $object-map
+                    $object-map,
+                    $id-filter-map
                 ))
             )
     return
@@ -1235,6 +1282,14 @@ declare function edwebapi:get-relation-list(
             for $s in $subj
             return
                 map:merge(( $r, map:entry("subject", $s?id) ))
+        else if ($relation-type/appconf:subject-condition/@type = "id-type")
+        then
+            for $r in $relations
+            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:subject-condition))
+            let $subj := $subjects[?filter?* = $id]
+            for $s in $subj
+            return
+                map:merge(( $r, map:entry("subject", $s?id) ))
         else
             let $subject-function := util:eval($relation-type/appconf:subject-condition)
             for $r in $relations
@@ -1258,6 +1313,14 @@ declare function edwebapi:get-relation-list(
             for $o in $obj
             return
                 map:merge(( $r, map:entry("object", $o?id) ))
+        else if ($relation-type/appconf:object-condition/@type = "id-type")
+        then
+            for $r in $relations
+            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:object-condition))
+            let $obj := $objects[?filter?* = $id]
+            for $s in $obj
+            return
+                map:merge(( $r, map:entry("object", $s?id) ))
         else
             let $object-function := util:eval($relation-type/appconf:object-condition)
             for $r in $relations

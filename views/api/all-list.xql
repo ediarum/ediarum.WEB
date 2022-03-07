@@ -26,6 +26,10 @@ return
     then
         let $all-list := edwebapi:get-all($app-target, $limit, $cache, false())
         return $all-list
+    else if ($id-type = "complete")
+    then
+        let $all-list := edwebapi:get-all($app-target, $limit, $cache, true())
+        return map:remove($all-list, "date-time")
     else
         let $all-list := edwebapi:get-all($app-target, $limit, $cache, true())
         return map:remove($all-list, "date-time")?*[?filter?($id-type)||"" != ""]
