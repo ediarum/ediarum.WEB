@@ -1226,20 +1226,23 @@ declare function local:view-expand-links(
                         if ($current-id||"" != "")
                         then "?ref="||$current-id
                         else ""
-                    return
+                    let $key-id :=
                         if (matches($attribute,'#'))
-                        then
-                            substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                        then substring-before(substring-after($attribute, "$id/"),'#')
+                        else substring-after($attribute, "$id/")
+                    let $anchor :=
+                        if (matches($attribute,'#'))
+                        then "#"||substring-after($attribute, '#')
+                        else ""
+                    return
+                    if (map:contains($link-list, $key-id))
+                    then substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                             ||edwebcontroller:get-exist-controller()||"/"
-                            ||$link-list?(substring-before(substring-after($attribute, "$id/"),'#'))?object-type
-                            ||"/"||substring-before(substring-after($attribute, "$id/"),'#')||$set-referer
-                            ||"#"||substring-after($attribute, '#')
-                        else
-                            substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
-                            ||edwebcontroller:get-exist-controller()||"/"
-                            ||$link-list?(substring-after($attribute, "$id/"))?object-type
-                            ||"/"||substring-after($attribute, "$id/")||$set-referer
-                } 
+                            ||$link-list?($key-id)?object-type
+                            ||"/"||$key-id||$set-referer
+                            ||$anchor
+                    else $error-function($attribute)
+                }
                 catch * {
                     $error-function($attribute)
                 }
