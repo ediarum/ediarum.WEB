@@ -169,6 +169,13 @@ declare function local:api-get-from-pattern(
         else ()
 };
 
+declare function edwebcontroller:base-url(
+) as xs:string
+{
+    substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                ||edwebcontroller:get-exist-controller()
+};
+
 (:~
  : This function activates the API paths and is used in a controller.xql. Every API http request is 
  : forwarded to ediarum.WEB and the results are returned. It uses the path and query paramters of
