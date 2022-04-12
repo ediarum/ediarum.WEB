@@ -60,7 +60,7 @@ It must be defined how the project is name (serves as ID as well) and where to f
 
 - `name` defines the project name/ID.
 - `status` defines the status of the current instance. It is be used to distinguish test instance, internal instance and public instance.
-- `collection` a absolute path to the root collection of the project data in the database.
+- `collection` a absolute path or a path relative to the appconf.xml to the root collection of the project data in the database.
 
 ```xml
 <project>

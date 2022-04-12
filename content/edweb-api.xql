@@ -1366,7 +1366,11 @@ declare function edwebapi:data-collection(
 ) as xs:string
 {
     let $config := edwebapi:get-config($app-target)
-    return $config//appconf:project/appconf:collection/normalize-space()
+    let $path := $config//appconf:project/appconf:collection/normalize-space()
+    return 
+        if (starts-with($path, '/'))
+        then $path
+        else $app-target||"/"||$path
 };
 
 (:~
