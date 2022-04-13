@@ -7,7 +7,7 @@ module namespace edweb="http://www.bbaw.de/telota/software/ediarum/web/lib";
 
 import module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
-import module namespace templates="http://exist-db.org/xquery/templates";
+import module namespace templates="http://exist-db.org/xquery/html-templating";
 import module namespace console="http://exist-db.org/xquery/console";
 import module namespace functx = "http://www.functx.com";
 
