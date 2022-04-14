@@ -268,7 +268,7 @@ declare function edweb:add-link-to-prev-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?labelled[?label-pos=1]?id
+    let $labelled-ids := $model?all[?label-pos=1]?id
     let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
@@ -285,7 +285,7 @@ declare function edweb:add-link-to-next-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?labelled[?label-pos=1]?id
+    let $labelled-ids := $model?all[?label-pos=1]?id
     let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
@@ -894,7 +894,6 @@ declare %templates:wrap function edweb:load-objects(
             map:entry("object-type", $object-type),
             map:entry("object-type-label", $object-type-label),
             map:entry("all", $all-objects),
-            map:entry("labelled", $labelled-objects),
             map:entry("filtered", $filtered-objects),
             map:entry("show", $show-objects),
             map:entry("filters", $filters),
