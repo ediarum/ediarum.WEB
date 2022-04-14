@@ -82,7 +82,7 @@ declare function edwebapi:filter-list(
 declare function edwebapi:get-all(
     $app-target as xs:string,
     $limit as xs:string?,
-    $cache as xs:string,
+    $cache as xs:string?,
     $with-filter as xs:boolean
 ) 
 {
@@ -249,21 +249,6 @@ declare function edwebapi:load-map-from-cache(
 ) as map(*) 
 {
     let $data-collection := edwebapi:data-collection($app-target)
-    let $node-set as node()* := 
-        if ($data-collection||"" = "") 
-        then 
-            ()
-        else if (xmldb:collection-available($data-collection))
-        then
-            collection($data-collection)/*
-        else if (doc-available($data-collection))
-        then
-            doc($data-collection)/*
-        else
-            error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "
-            ||$data-collection)
-    let $arity := array:size($params)
-    let $function := function-lookup(xs:QName($function-name), $arity)
     let $create-cache-collection :=
         if (xmldb:collection-available($app-target||"/"||$edwebapi:cache-collection))
         then ()
@@ -276,38 +261,54 @@ declare function edwebapi:load-map-from-cache(
         if($cache-exists) 
         then parse-json($load-cache)
         else false()
-    let $current-date-time := current-dateTime()            
-    let $cache-is-new :=
-        if ($cache-exists)
-        then ($current-date-time < xs:dateTime($load-map?date-time) + xs:dayTimeDuration("PT1M"))
-        else false()
-    let $cache-is-up-to-date :=
-        if ($cache-exists and count($node-set)=0)
-        then true()
+
+    let $load-map :=
+        (: Block caching if cache is younger than 1 min :)
+        if ($cache-exists and (current-dateTime() < xs:dateTime($load-map?date-time) + xs:dayTimeDuration("PT1M")))
+        then $load-map
+        (: Start caching if hard-reload is set :)
+        else if ($hard-reload)
+        then local:build-and-load-cache($function-name, $params, $app-target, $cache-file-name)
+        (: Start caching if soft-reload is set and cache isn't up to date :)
         else if ($cache-exists and $soft-reload)
-        then
+        then 
+            let $node-set as node()* := 
+                if ($data-collection||"" = "") 
+                then ()
+                else if (xmldb:collection-available($data-collection))
+                then collection($data-collection) (: /* :) 
+                else if (doc-available($data-collection))
+                then doc($data-collection)/*
+                else error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
             let $since := $load-map?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
-            return count($last-modified)=0
+            return 
+                if (count($last-modified)=0)
+                then $load-map
+                else local:build-and-load-cache($function-name, $params, $app-target, $cache-file-name)
+        (: Load from cache if cache exists :)
         else if ($cache-exists)
-        then true()
-        else false()
-    let $load-from-cache := $cache-is-new or (not($hard-reload) and $cache-is-up-to-date)
-    let $apply-and-store :=
-        if ($load-from-cache)
-        then ()
-        else
-            let $map := apply($function, $params)
-            return xmldb:store($app-target||"/"||$edwebapi:cache-collection, $cache-file-name, <json>{serialize($map,
-                <output:serialization-parameters><output:method>json</output:method>
-                </output:serialization-parameters>)}</json>)
-    let $load-map := 
-        if ($load-from-cache)
         then $load-map
-        else 
-            let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
-            return parse-json($load-cache)
+        (: Start caching :)
+        else local:build-and-load-cache($function-name, $params, $app-target, $cache-file-name)
     return $load-map
+};
+
+declare function local:build-and-load-cache(
+    $function-name as xs:string, 
+    $params as array(*),
+    $app-target as xs:string?,
+    $cache-file-name as xs:string
+) as map(*)
+{
+    let $arity := array:size($params)
+    let $function := function-lookup(xs:QName($function-name), $arity)
+    let $map := apply($function, $params)
+    let $store := xmldb:store($app-target||"/"||$edwebapi:cache-collection, $cache-file-name, <json>{serialize($map,
+        <output:serialization-parameters><output:method>json</output:method>
+        </output:serialization-parameters>)}</json>)
+    let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
+    return parse-json($load-cache)
 };
 
 (:~
