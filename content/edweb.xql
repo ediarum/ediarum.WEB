@@ -92,16 +92,15 @@ declare function edweb:add-breadcrumb-items(
             let $filter-value := 
                 if ($filter-value instance of array(*)) 
                 then $filter-value?*[1]
-                else $filter-value
+                else ($filter-value)[1]
             return $f||"="||$filter-value
         let $filter-value := 
             if ($filter-values instance of array(*)) 
-            then
-                    $filter-values?*[1]
-            else $filter-values
+            then $filter-values?*[1]
+            else ($filter-values)[1]
         let $href := string-join(($other-filter, $f||"="||$filter-value), "&amp;")
         return
-            if ($filter-value) 
+            if ($filter-value||"" != "")
             then
                     <li class="breadcrumb-item">
                         <a href="$base-url/{$object-type}/index.html?{$href}">{$filter-value}</a>
