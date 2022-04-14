@@ -674,6 +674,16 @@ declare %templates:wrap function edweb:load(
         map:merge(($model, $add-map))
 };
 
+declare function local:load(
+    $model as map(*),
+    $api-path as xs:string
+) as map(*)
+{
+    if (map:contains($model, $api-path))
+    then $model
+    else map:put($model, $api-path,  edwebcontroller:api-get($api-path))
+};
+
 (:~
  : Loads an object with the current id and object-type.
  :
@@ -836,16 +846,36 @@ declare %templates:wrap function edweb:load-inner-navigation(
  :)
 declare %templates:wrap function edweb:load-objects(
     $node as node(),
+    $model as map(*)
 ) as map(*)
 {
     let $object-type := request:get-attribute("object-type")
-    let $object-type-label := 
-        edwebcontroller:api-get("/api")//appconf:object[@xml:id=$object-type]/appconf:name
-    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all")
-    let $c := console:log("loading", count($all-objects))
-    let $labelled-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
-    let $c := console:log("loading", count($labelled-objects))
-    let $filters := edwebcontroller:api-get("/api/"||$object-type||"?show=filter")
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $object-def := $appconf//appconf:object[@xml:id=$object-type]
+    let $object-type-label := $object-def/appconf:name
+    let $filters :=
+        map:merge((
+            for $f at $pos in $object-def/appconf:filters/*
+            let $key := $f/@xml:id/string()
+            return
+                map:entry(
+                    $key,
+                    map:merge((
+                        map:entry("id", $key),
+                        map:entry("name", $f/appconf:name/string()),
+                        map:entry("n", $pos),
+                        map:entry("type", $f/appconf:type/string()),
+                        map:entry("depends", $f/@depends/string()),
+                        map:entry("xpath", $f/appconf:xpath/string()),
+                        map:entry(
+                            "label-function",
+                            $f/appconf:label-function[@type='xquery']/normalize-space()
+                        )
+                    ))
+                )
+        ))
+
     let $filter-params := edweb:params-load((map:keys($filters)))
     let $filtered-objects :=
         edwebcontroller:api-get(
@@ -857,6 +887,8 @@ declare %templates:wrap function edweb:load-objects(
             "/api/"||$object-type||"?show=list&amp;order=label&amp;page="||edweb:params-get-page()
             ||"&amp;range="||edweb:params-get-page-size()||"&amp;"||edweb:params-insert($filter-params)
         )
+    let $all-objects :=
+    edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
     let $add-map :=
         map:merge((
             map:entry("object-type", $object-type),
@@ -879,9 +911,10 @@ declare %templates:wrap function edweb:load-objects(
 declare function edweb:load-project(
     $node as node(),
     $model as map(*)
-) as map(*) 
+) as map(*)
 {
-    let $appconf := edwebcontroller:api-get("/api")
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
     let $project-status := $appconf//appconf:project/appconf:status/string()
     let $project-name := $appconf//appconf:project/appconf:name/string()
     let $project-map :=
