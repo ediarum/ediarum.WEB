@@ -226,9 +226,9 @@ declare function edweb:add-filter-item-link(
 ) as node() 
 {
     let $href := $model?item?href
-    let $enabled := if ($model?item?count-select > 0) then "enabled" else "disabled"
+    let $enabled := if ($model?item?count-select = 0) then "disabled" else "enabled"
     let $selected := if ($model?item?selected eq "selected") then "current" else ()
-    let $count := <span class="count">{$model?item?count-select}</span>
+    let $count := if ($model?item?count-select = -1) then () else <span class="count">{$model?item?count-select}</span>
     let $close := 
         if ($model("item")("selected") eq "selected") 
         then <span aria-hidden="true" class="pull-right close">×</span>
@@ -725,8 +725,7 @@ declare %templates:wrap function edweb:load-filter(
             if (contains(" "||$filter?depends||" ", " "||$filter-name||" "))
             then map:entry($filter?id, "")
             else ()
-    let $map := edwebcontroller:api-get("/api/"||$object-type)
-    let $labels := 
+    let $labels :=
         for $l in distinct-values($model?all?filter?($filter-name))[. != '']
         let $this-label := $l
         let $add-label :=
@@ -748,11 +747,10 @@ declare %templates:wrap function edweb:load-filter(
             if ($this-label = tokenize($model?params?($filter-name), $edweb:param-separator))
             then "selected"
             else ""
+        let $type := $model?filters?($filter-name)?type
         let $filter-params :=
-            let $type := $model?filters?($filter-name)?type 
-            return
-                if ($type eq "single" or $type eq "greater-than" or $type eq "lower-than") 
-                then 
+                if ($type eq "single" or $type eq "greater-than" or $type eq "lower-than")
+                then
                     edweb:params-insert(
                         $model?params,
                         map:merge((
@@ -777,14 +775,28 @@ declare %templates:wrap function edweb:load-filter(
                             $map-entries
                         ))
                     )
-        let $filter-select-items :=
-            let $params := edweb:params-load-from-string($filter-params)
-            return local:filter-list($map?list?*, $map?filter, $params)
-        let $count-select := 
-            if (exists($filter-select-items)) 
-            then count($filter-select-items) 
-            else 0
-        order by $l 
+        let $count-select :=
+            (: If filter is intersect, count can be calculated :)
+            if ($type = "intersect")
+            then count($model?filtered[?filter?($filter-name)=$this-label])
+            (: If filter is set, enable all filter values but count. :)
+            else if ($model?params?($filter-name) != "")
+            then -1
+            else
+                switch($type)
+                case "single"
+                return     count($model?filtered[?filter?($filter-name)=$this-label])
+                case "union"
+                return     count($model?filtered[?filter?($filter-name)=$this-label])
+                case "intersect"
+                return     count($model?filtered[?filter?($filter-name)=$this-label])
+                case "greater-than"
+                return     count($model?filtered[?filter?($filter-name)>=$this-label])
+                case "lower-than"
+                return     count($model?filtered[?filter?($filter-name)<=$this-label])
+                default
+                return 0
+        order by $l
         return
             map:merge((
                 map:entry("label", $l),
@@ -798,56 +810,6 @@ declare %templates:wrap function edweb:load-filter(
             map:entry("filter-items", ($labels))
         ))
     return map:merge(($model, $add-map))
-};
-
-(:~
- : see edwebapi:filter-list
- :)
-declare function local:filter-list(
-    $list as map(*)*, 
-    $filters as map(*), 
-    $params as map(*)
-) as map(*)* 
-{
-    if (count(map:keys($filters)) > 0) then
-        let $filter := $filters?*[1]
-        let $filter-id := $filter?id
-        let $filter-values := tokenize($params?($filter-id), $edweb:param-separator)
-        let $filter-expression :=
-            if (empty($filter-values)) 
-            then function($list as map(*)*) { $list}
-            else
-                switch($filter?type)
-                case "single" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
-                case "union" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
-                case "intersect" 
-                return
-                    function($list as map(*)*) {
-                        for $item in $list 
-                        let $item-filter-values := $item?filter?($filter-id)
-                        let $filters-are-true := 
-                            for $fv in $filter-values 
-                            return ($fv = $item-filter-values) 
-                        return
-                            if (not( false() = ($filters-are-true) )) 
-                            then $item
-                            else ()
-                    }
-                case "greater-than" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) >= $filter-values] }
-                case "lower-than" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) <= $filter-values] }
-                default 
-                return function($list as map(*)*) { () }
-        let $filtered-list := $filter-expression($list)
-        let $other-filter := map:remove($filters, $filter-id)
-        return
-            if (count(map:keys($other-filter)) > 0) 
-            then local:filter-list($filtered-list, $other-filter, $params)
-            else $filtered-list
-    else $list
 };
 
 (:~
