@@ -550,6 +550,31 @@ declare function edwebcontroller:get-exist-root(
     else "/db/apps"
 };
 
+(: Load media files ('css', 'js', 'svg', 'png', 'jpg'). Should be included in controller.xql to avoid loading times. Because otherwise not found resources are forwarded to the error page.
+ :
+ : @param $media-abbrev an individual media suffix can be added.
+ :)
+declare function edwebcontroller:load-media(
+    $media-abbrev as xs:string?
+) as item()*
+{
+    if (
+        edwebcontroller:is-pass-through()
+        and
+        (
+            matches(edwebcontroller:get-exist-path(), ".*\.(css|js|svg|png|jpg)")
+            or
+            ends-with(edwebcontroller:get-exist-path(), "."||$media-abbrev)
+        )
+    )
+    then (
+        local:set-pass-through-false()
+        ,
+       <dispatch xmlns="http://exist.sourceforge.net/NS/exist"></dispatch>
+    )
+    else ()
+};
+
 (:~
  : Forwards the request to a view and set a feed without id, e.g. "/texts/index.html"
  :
