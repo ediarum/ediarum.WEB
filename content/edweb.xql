@@ -713,39 +713,39 @@ declare %templates:wrap function edweb:load-current-object(
  :
  :)
 declare %templates:wrap function edweb:load-filter(
-    $node as node(), 
-    $model as map(*), 
+    $node as node(),
+    $model as map(*),
     $filter-name as xs:string
-) as map(*) 
+) as map(*)
 {
     let $object-type := request:get-attribute("object-type")
     let $map-entries :=
-        for $filter in $model?("filters")?*
+        for $filter in $model?filters?*
         return
-            if (contains(" "||$filter("depends")||" ", " "||$filter-name||" ")) 
-            then map:entry($filter?("id"), "")
+            if (contains(" "||$filter?depends||" ", " "||$filter-name||" "))
+            then map:entry($filter?id, "")
             else ()
     let $map := edwebcontroller:api-get("/api/"||$object-type)
     let $labels := 
-        for $l in distinct-values($model?("all")?("filter")?($filter-name))[. != '']
+        for $l in distinct-values($model?all?filter?($filter-name))[. != '']
         let $this-label := $l
-        let $add-label := 
+        let $add-label :=
             string-join(
                 distinct-values((
                     tokenize($model("params")($filter-name), $edweb:param-separator),
                     $l
-                )), 
+                )),
                 $edweb:param-separator
             )
-        let $remove-label := 
+        let $remove-label :=
             string-join(
                 distinct-values(
                     tokenize($model("params")($filter-name), $edweb:param-separator)[not(.=$l)]
-                ), 
+                ),
                 $edweb:param-separator
             )
         let $selected :=
-            if ($this-label = tokenize($model?params?($filter-name), $edweb:param-separator)) 
+            if ($this-label = tokenize($model?params?($filter-name), $edweb:param-separator))
             then "selected"
             else ""
         let $filter-params :=
@@ -754,16 +754,16 @@ declare %templates:wrap function edweb:load-filter(
                 if ($type eq "single" or $type eq "greater-than" or $type eq "lower-than") 
                 then 
                     edweb:params-insert(
-                        $model("params"),
+                        $model?params,
                         map:merge((
-                            map:entry($filter-name, $this-label), 
+                            map:entry($filter-name, $this-label),
                             $map-entries
                         ))
                     )
-                else if ($selected) 
+                else if ($selected)
                 then
                     edweb:params-insert(
-                        $model("params"),
+                        $model?params,
                         map:merge((
                             map:entry($filter-name, $remove-label),
                             $map-entries
@@ -771,7 +771,7 @@ declare %templates:wrap function edweb:load-filter(
                     )
                 else
                     edweb:params-insert(
-                        $model("params"),
+                        $model?params,
                         map:merge((
                             map:entry($filter-name, $add-label),
                             $map-entries
@@ -792,7 +792,7 @@ declare %templates:wrap function edweb:load-filter(
                 map:entry("count-select", $count-select),
                 map:entry("href", request:get-uri()||"?"||$filter-params)
             ))
-    let $add-map := 
+    let $add-map :=
         map:merge((
             map:entry("filter", $model?("filters")?($filter-name)),
             map:entry("filter-items", ($labels))
@@ -873,9 +873,8 @@ declare %templates:wrap function edweb:load-inner-navigation(
  :
  :)
 declare %templates:wrap function edweb:load-objects(
-    $node as node(), 
-    $model as map(*)
-) as map(*) 
+    $node as node(),
+) as map(*)
 {
     let $object-type := request:get-attribute("object-type")
     let $object-type-label := 
@@ -886,19 +885,17 @@ declare %templates:wrap function edweb:load-objects(
     let $c := console:log("loading", count($labelled-objects))
     let $filters := edwebcontroller:api-get("/api/"||$object-type||"?show=filter")
     let $filter-params := edweb:params-load((map:keys($filters)))
-    let $filtered-objects := 
+    let $filtered-objects :=
         edwebcontroller:api-get(
             "/api/"||$object-type||"?show=list&amp;order=label&amp;"
             ||edweb:params-insert($filter-params)
         )
-    let $c := console:log("loading", count($filtered-objects))
-    let $show-objects := 
+    let $show-objects :=
         edwebcontroller:api-get(
             "/api/"||$object-type||"?show=list&amp;order=label&amp;page="||edweb:params-get-page()
             ||"&amp;range="||edweb:params-get-page-size()||"&amp;"||edweb:params-insert($filter-params)
         )
-    let $c := console:log("loading", count($show-objects))
-    let $add-map := 
+    let $add-map :=
         map:merge((
             map:entry("object-type", $object-type),
             map:entry("object-type-label", $object-type-label),
