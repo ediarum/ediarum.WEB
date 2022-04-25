@@ -869,18 +869,21 @@ declare %templates:wrap function edweb:load-objects(
         ))
 
     let $filter-params := edweb:params-load((map:keys($filters)))
+    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
     let $filtered-objects :=
-        edwebcontroller:api-get(
-            "/api/"||$object-type||"?show=list&amp;order=label&amp;"
-            ||edweb:params-insert($filter-params)
-        )
+        if (edweb:params-insert($filter-params) != "")
+        then
+            edwebcontroller:api-get(
+                "/api/"||$object-type||"?show=list&amp;order=label&amp;"
+                ||edweb:params-insert($filter-params)
+            )
+        else $all-objects
     let $show-objects :=
-        edwebcontroller:api-get(
-            "/api/"||$object-type||"?show=list&amp;order=label&amp;page="||edweb:params-get-page()
-            ||"&amp;range="||edweb:params-get-page-size()||"&amp;"||edweb:params-insert($filter-params)
-        )
-    let $all-objects :=
-    edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
+        let $array := $filtered-objects
+        let $page := edweb:params-get-page()
+        let $range := edweb:params-get-page-size()
+        return
+            subsequence($array, (($page - 1) * $range) + 1, $range )
     let $add-map :=
         map:merge((
             map:entry("object-type", $object-type),
