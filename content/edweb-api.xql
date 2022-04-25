@@ -295,20 +295,34 @@ declare function edwebapi:load-map-from-cache(
 };
 
 declare function local:build-and-load-cache(
-    $function-name as xs:string, 
+    $function-name as xs:string,
     $params as array(*),
     $app-target as xs:string?,
     $cache-file-name as xs:string
 ) as map(*)
 {
-    let $arity := array:size($params)
-    let $function := function-lookup(xs:QName($function-name), $arity)
-    let $map := apply($function, $params)
-    let $store := xmldb:store($app-target||"/"||$edwebapi:cache-collection, $cache-file-name, <json>{serialize($map,
-        <output:serialization-parameters><output:method>json</output:method>
-        </output:serialization-parameters>)}</json>)
-    let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
-    return parse-json($load-cache)
+    let $collection-uri := $app-target||"/"||$edwebapi:cache-collection
+    return
+    if (doc-available($collection-uri||"/"||$cache-file-name||".lock"))
+    (: If cache is locked :)
+    then
+        if (doc-available($collection-uri||"/"||$cache-file-name))
+        then
+            let $load-cache := doc($collection-uri||"/"||$cache-file-name)/json/text()
+            return parse-json($load-cache)
+        else map {}
+    else
+    (: If cache isn't locked :)
+        let $set-lock-for-cache-file := xmldb:store($collection-uri,$cache-file-name||".lock", <root>Locked since {current-dateTime()}.</root>)
+        let $arity := array:size($params)
+        let $function := function-lookup(xs:QName($function-name), $arity)
+        let $map := apply($function, $params)
+        let $store := xmldb:store($collection-uri, $cache-file-name, <json>{serialize($map,
+            <output:serialization-parameters><output:method>json</output:method>
+            </output:serialization-parameters>)}</json>)
+        let $remove-lock-for-cache-file := xmldb:remove($collection-uri, $cache-file-name||".lock")
+        let $load-cache := doc($collection-uri||"/"||$cache-file-name)/json/text()
+        return parse-json($load-cache)
 };
 
 (:~
