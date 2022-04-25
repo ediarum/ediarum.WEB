@@ -705,15 +705,8 @@ declare %templates:wrap function edweb:load-current-object(
             return  $object?id
         else
             request:get-attribute("id")
-    let $map := edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id)
-    let $current-doc := 
-        map:entry( 
-            "current-doc",
-            edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id||"?output=xml")
-        )
-    (: TODO: Remove this. The following line must be present! Otherwise there exists an error: "element(<xml>...</xml>) is not a subtype of map"! :)
-(:    let $c := console:log("loading", $current-doc):)
-(:    let $model := edweb:load-project($node, $model):)
+    let $map := edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id||"?output=json-xml")
+    let $current-doc := map:entry("current-doc", $map?xml)
     return
         map:merge(($model, $map, $current-doc))
 };
