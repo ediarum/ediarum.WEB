@@ -694,7 +694,7 @@ declare function edwebapi:eval-filters-for-object(
                 let $relations := 
                     edwebapi:load-map-from-cache(
                         "edwebapi:get-relation-list",
-                        [$app-target, $rel-type-name, ()],
+                        [$app-target, $rel-type-name, "", ()],
                         $app-target,
                         $cache = "no",
                         $cache = "reset"
