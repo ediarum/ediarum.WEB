@@ -965,15 +965,12 @@ declare function edweb:load-relations-for-subject-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations-map := edwebcontroller:api-get("/api/"||$relation)
-    let $object-list := edwebcontroller:api-get("/api/"||$relations-map("object-type"))
-    let $relations := $relations-map?list?*[?subject = $id]
-    let $items := 
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;subject="||$id)
+    let $items :=
         for $r in $relations
-        let $object-id := $r?object
-        let $object-map := $object-list?list?($object-id)
+        let $object-map := $r?object
         order by $object-map?label
-        return 
+        return
             map:merge((
                 $object-map,
                 map:entry("predicate", $r?predicate),
@@ -1040,15 +1037,12 @@ declare function edweb:load-relations-for-object-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations-map := edwebcontroller:api-get("/api/"||$relation)
-    let $subject-list := edwebcontroller:api-get("/api/"||$relations-map("subject-type"))
-    let $relations := $relations-map?list?*[?object = $id]
-    let $items := 
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;object="||$id)
+    let $items :=
         for $r in $relations
-        let $subject-id := $r?subject
-        let $subject-map := $subject-list?list?($subject-id)
+        let $subject-map := $r?subject
         order by $subject-map?label
-        return 
+        return
             map:merge((
                 $subject-map,
                 map:entry("predicate", $r?predicate),

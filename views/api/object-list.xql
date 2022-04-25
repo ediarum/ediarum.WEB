@@ -45,7 +45,7 @@ let $id := request:get-parameter("id", request:get-attribute("id"))
 let $object := request:get-parameter("object",request:get-attribute("object"))
 let $subject := request:get-parameter("subject",request:get-attribute("subject"))
 
-let $show := request:get-parameter("show", request:get-attribute("show"))
+let $show := request:get-parameter("show", request:get-attribute("show"))||""
 
 let $config := edwebapi:get-config($app-target)
 let $is-object := exists($config//appconf:object[@xml:id=$object-type])
@@ -70,15 +70,18 @@ let $result :=
             $cache = "no",
             $cache = "reset"
         )
-    else if ($is-relation) 
-    then 
+    else if ($is-relation)
+    then
+        if ($show = ("", "list", "full"))
+        then
         edwebapi:load-map-from-cache(
             "edwebapi:get-relation-list",
-            [$app-target, $object-type, $limit], 
-            $app-target, 
+            [$app-target, $object-type, $show, $limit],
+            $app-target,
             $cache = "no",
             $cache = "reset"
         )
+        else "Parameter 'show' must be one of 'list', 'full' or ''."
     else $object-type||" isn't defined for '"||$app-target||"'."
 return
     if ($is-object and ($show eq 'list' or $show eq 'all' or $show eq 'compact')) 
@@ -117,6 +120,10 @@ return
     (: Relations :)
     else if ($show eq 'list' and $subject||"" != "")
     then $result?list?*[?subject = $subject]
+    else if ($show eq 'full' and $subject||"" != "")
+    then $result?list?*[?subject?id = $subject]
     else if ($show eq 'list' and $object||"" != "")
     then $result?list?*[?object = $object]
+    else if ($show eq 'full' and $object||"" != "")
+    then $result?list?*[?object?id = $object]
     else $result

@@ -1200,17 +1200,18 @@ declare function local:get-part-map(
 
 (:~
  : Retrieves relation triples from the data.
- : 
+ :
  : @param $app-target the collection name where the app is installed, e.g. /db/apps/project.WEB
  : @param $relation-type-name the xml:id of the relation-type
- : @return a map which contains "date-time", "type"="relations", "subject-type", "object-type", 
+ : @return a map which contains "date-time", "type"="relations", "subject-type", "object-type",
  : "name", "list" with an array of relation maps containing "subject", "object" "predicate".
  :)
 declare function edwebapi:get-relation-list(
-    $app-target as xs:string, 
+    $app-target as xs:string,
     $relation-type-name as xs:string,
+    $show as xs:string,
     $limit as xs:string?
-) as map(*) 
+) as map(*)
 {
     let $cache := ""
     let $config := edwebapi:get-config($app-target)
@@ -1229,22 +1230,22 @@ declare function edwebapi:get-relation-list(
     let $label-function := $relation-type/appconf:item/appconf:label[@type=('xquery','xpath')]
 
     let $objects :=
-        let $map := 
+        let $map :=
             edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list-without-filter", 
-                [$app-target, $object-type, $limit], 
-                $app-target, 
+                "edwebapi:get-object-list-without-filter",
+                [$app-target, $object-type, $limit],
+                $app-target,
                 $cache = "no",
                 $cache = "reset"
             )
         return $map?list?* (: "list-without-filter" :)
 
-    let $subjects := 
-        let $map := 
+    let $subjects :=
+        let $map :=
             edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list-without-filter", 
-                [$app-target, $subject-type, $limit], 
-                $app-target, 
+                "edwebapi:get-object-list-without-filter",
+                [$app-target, $subject-type, $limit],
+                $app-target,
                 $cache = "no",
                 $cache = "reset"
             )
@@ -1259,7 +1260,7 @@ declare function edwebapi:get-relation-list(
         else $edwebapi:object-limit
     let $relations :=
         for $rel in $relations[position() <= $limit]
-        return 
+        return
             map:merge((
                 map:entry("xml", $rel),
                 map:entry("internal-node-id", util:node-id($rel)),
@@ -1274,7 +1275,9 @@ declare function edwebapi:get-relation-list(
             let $subj := $subjects[?absolute-resource-id = $r?absolute-resource-id]
             for $s in $subj
             return
-                map:merge(( $r, map:entry("subject", $s?id) ))
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("subject", $s) ))
+                else map:merge(( $r, map:entry("subject", $s?id) ))
         else if ($relation-type/appconf:subject-condition/@type = "id")
         then
             for $r in $relations
@@ -1282,7 +1285,9 @@ declare function edwebapi:get-relation-list(
             let $subj := $subjects[?id = $id]
             for $s in $subj
             return
-                map:merge(( $r, map:entry("subject", $s?id) ))
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("subject", $s) ))
+                else map:merge(( $r, map:entry("subject", $s?id) ))
         else if ($relation-type/appconf:subject-condition/@type = "id-type")
         then
             for $r in $relations
@@ -1290,14 +1295,18 @@ declare function edwebapi:get-relation-list(
             let $subj := $subjects[?filter?* = $id]
             for $s in $subj
             return
-                map:merge(( $r, map:entry("subject", $s?id) ))
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("subject", $s) ))
+                else map:merge(( $r, map:entry("subject", $s?id) ))
         else
             let $subject-function := util:eval($relation-type/appconf:subject-condition)
             for $r in $relations
             for $s in $subjects
             where $subject-function($r, $s)
-            return 
-                map:merge(( $r, map:entry("subject", $s?id) ))
+            return
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("subject", $s) ))
+                else map:merge(( $r, map:entry("subject", $s?id) ))
     let $relations :=
         if ($relation-type/appconf:object-condition/@type = "resource")
         then
@@ -1305,7 +1314,9 @@ declare function edwebapi:get-relation-list(
             let $obj := $objects[?absolute-resource-id = $r?absolute-resource-id]
             for $o in $obj
             return
-                map:merge(( $r, map:entry("object", $o?id) ))
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("object", $o) ))
+                else map:merge(( $r, map:entry("object", $o?id) ))
         else if ($relation-type/appconf:object-condition/@type = "id")
         then
             for $r in $relations
@@ -1313,38 +1324,44 @@ declare function edwebapi:get-relation-list(
             let $obj := $objects[?id = $id]
             for $o in $obj
             return
-                map:merge(( $r, map:entry("object", $o?id) ))
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("object", $o) ))
+                else map:merge(( $r, map:entry("object", $o?id) ))
         else if ($relation-type/appconf:object-condition/@type = "id-type")
         then
             for $r in $relations
             let $id := string(util:eval-inline($r?xml,$relation-type/appconf:object-condition))
             let $obj := $objects[?filter?* = $id]
-            for $s in $obj
+            for $o in $obj
             return
-                map:merge(( $r, map:entry("object", $s?id) ))
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("object", $o) ))
+                else map:merge(( $r, map:entry("object", $o?id) ))
         else
             let $object-function := util:eval($relation-type/appconf:object-condition)
             for $r in $relations
             for $o in $objects
             where $object-function($r, $o)
-            return 
-                map:merge(( $r, map:entry("object", $o?id) ))
+            return
+                if ($show eq 'full')
+                then map:merge(( $r, map:entry("object", $o) ))
+                else map:merge(( $r, map:entry("object", $o?id) ))
     let $relations :=
         for $r in $relations
-        return 
-            map:merge(( 
-                $r, 
+        return
+            map:merge((
+                $r,
                 map:entry(
-                    "predicate", 
-                    if ($label-function/@type = 'xpath') 
+                    "predicate",
+                    if ($label-function/@type = 'xpath')
                     then util:eval-inline($r?xml, $label-function)
-                    else if ($label-function/@type = 'xquery') 
+                    else if ($label-function/@type = 'xquery')
                     then util:eval($label-function)($r?xml)
                     else ()
                 )
             ))
     return
-        map:merge(( 
+        map:merge((
             map:entry("date-time", current-dateTime()),
             map:entry("type", "relations"),
             map:entry("subject-type", $subject-type),

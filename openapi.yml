@@ -92,6 +92,7 @@ paths:
               - compact # show all objects but in compact form, i.e. without properties
               - filter # show the filter definitions
               - list # show objects matching the filter criteria
+              - full # show relations with full objects in 'subject' and 'object'
         - name: slop
           in: query
           description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
