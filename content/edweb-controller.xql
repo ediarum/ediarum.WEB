@@ -709,7 +709,7 @@ function edwebcontroller:read-path-variables(
             return [$variable-pattern, $key]
         else ()
     let $matches := for $part at $pos in $path-regex-parts
-        let $path-tail := replace ($path, "^"||string-join(for $p in subsequence($path-regex-parts, 1, $pos -1) return $p(1)), "")
+        let $path-tail := if (fn:count($path-regex-parts) eq 1) then ($path) else (replace($path, "^"||string-join(for $p in subsequence($path-regex-parts, 1, $pos -1) return $p(1)), ""))
         let $match := functx:get-matches($path-tail, $part(1))[1]
         return <match>{$match}</match>
     let $params := for $p at $pos in $path-regex-parts return
