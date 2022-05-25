@@ -861,6 +861,20 @@ declare function edwebapi:get-object-list(
     let $filters := $object-def/appconf:filters/appconf:filter
     let $filter :=
         map:merge((
+            map:entry(
+                "id",
+                map:merge((
+                        map:entry("id", "id"),
+                        map:entry("name", "ID"),
+                        map:entry("n", 0),
+                        map:entry("type", "id"),
+                        map:entry("depends", ""),
+                        map:entry("xpath", $object-def/appconf:item/appconf:id),
+                        map:entry(
+                            "label-function", "function($string) { $string }"
+                        )
+                ))
+            ),
             for $f at $pos in $filters
             let $key := $f/@xml:id/string()
             return
@@ -1054,7 +1068,7 @@ declare function edwebapi:get-objects(
     (: }  :)
     (: catch * { error(xs:QName("edwebapi:get-objects-001"), "Can't load objects. data-collection: " :)
         (: ||$data-collection||", collection: "||$collection||", root: "||$root) :)
-        }
+        (: } :)
     (: TODO: Hack for exist-db 4.6.1 This can probably be solved more elegantly :)
     (:~ util:eval("collection('" || $collection || "')//" || $xpath) ~:)
 };
