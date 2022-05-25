@@ -107,7 +107,7 @@ return
                 )
             else $result
         let $array := $result?list?*
-        let $array := edwebapi:order-items($array, $order)
+        let $array := if ($order||"" != "") then edwebapi:order-items($array, $order) else $array
         let $array := edwebapi:filter-list($array, $result?filter, $filter-params)
         return 
             if ($page) 

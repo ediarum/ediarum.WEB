@@ -1139,7 +1139,10 @@ declare function edwebapi:order-items(
 ) as map(*)*
 {
     if (not($order eq 'label'))
-    then $list
+    then
+        for $item in $list
+        order by $item?filter?($order)
+        return $item
     else
         let $long-list :=
             for $item in $list
