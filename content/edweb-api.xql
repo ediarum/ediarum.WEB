@@ -1041,7 +1041,7 @@ declare function edwebapi:get-objects(
     $root as xs:string
 ) as node()* 
 {
-    try { 
+    (: try {  :)
         if (xmldb:collection-available($data-collection||$collection))
         then
             util:eval("collection($data-collection||$collection)//"||$root)
@@ -1051,9 +1051,9 @@ declare function edwebapi:get-objects(
         else
             error(xs:QName("edwebapi:get-objects-002"), "Can't find collection or resource. data-collection: "
             ||$data-collection||", collection/resource: "||$collection)
-    } 
-    catch * { error(xs:QName("edwebapi:get-objects-001"), "Can't load objects. data-collection: "
-        ||$data-collection||", collection: "||$collection||", root: "||$root)
+    (: }  :)
+    (: catch * { error(xs:QName("edwebapi:get-objects-001"), "Can't load objects. data-collection: " :)
+        (: ||$data-collection||", collection: "||$collection||", root: "||$root) :)
         }
     (: TODO: Hack for exist-db 4.6.1 This can probably be solved more elegantly :)
     (:~ util:eval("collection('" || $collection || "')//" || $xpath) ~:)
