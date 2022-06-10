@@ -1213,15 +1213,21 @@ declare function edwebapi:get-search-results(
  :
  :)
 declare function edwebapi:order-items(
-    $list as map(*)*, 
-    $order as xs:string?
+    $list as map(*)*,
+    $order as xs:string?,
+    $order-modifier as xs:string?
 ) as map(*)*
 {
     if (not($order eq 'label'))
     then
-        for $item in $list
-        order by $item?filter?($order)
-        return $item
+        if (not($order-modifier = "descending")) then
+            for $item in $list
+            order by $item?filter?($order)
+            return $item
+        else
+            for $item in $list
+            order by $item?filter?($order) descending
+            return $item
     else
         let $long-list :=
             for $item in $list
@@ -1243,9 +1249,15 @@ declare function edwebapi:order-items(
                         map:entry("label-pos",$pos),
                         map:entry("label", $label)
                     )) 
-        for $item in $long-list
-        order by $item?label
-        return $item
+        return
+            if (not($order-modifier = "descending")) then
+                for $item in $long-list
+                order by $item?label
+                return $item
+            else
+                for $item in $long-list
+                order by $item?label descending
+                return $item
 };
 
 (:~

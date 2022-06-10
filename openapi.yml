@@ -55,9 +55,17 @@ paths:
             default: 10000
         - name: order
           in: query
-          description: By which the list should be ordered
+          description: By which the list should be ordered. Can be `label` or a defined property.
           schema:
             type: string # TODO there are some values
+        - name: order-modifier
+          in: query
+          description: If the list should be ordered `ascending` (default) or `descending`.
+          schema:
+            type: string
+            enum:
+              - ascending
+              - descending
         - name: page
           in: query
           description: Defines which page of list results should be returned. To be used with `range`.

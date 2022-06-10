@@ -36,6 +36,7 @@ let $search-type := request:get-parameter("search-type",request:get-attribute("s
 let $slop := request:get-parameter("slop",request:get-attribute("slop"))
 
 let $order := request:get-parameter("order", request:get-attribute("order"))
+let $order-modifier := request:get-parameter("order-modifier", request:get-attribute("order-modifier"))
 let $filter-expression := request:get-parameter("filterExpression", ())
 let $range := number(request:get-parameter("range", request:get-attribute("range")))
 let $page := number(request:get-parameter("page", request:get-attribute("page")))
@@ -107,7 +108,7 @@ return
                 )
             else $result
         let $array := $result?list?*
-        let $array := if ($order||"" != "") then edwebapi:order-items($array, $order) else $array
+        let $array := if ($order||"" != "") then edwebapi:order-items($array, $order, $order-modifier) else $array
         let $array := edwebapi:filter-list($array, $result?filter, $filter-params)
         return 
             if ($page) 
