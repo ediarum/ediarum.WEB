@@ -493,7 +493,10 @@ declare function edwebapi:get-object-with-search(
         else xs:float(0.0)
     let $search-hits :=
         if ($search-xpath||$search-query||"" != "")
-        then util:eval-inline($xml, $query-function)
+        then
+            if ($search-type = 'distance')
+            then ()
+            else util:eval-inline($xml, $query-function)
         else ()
     let $xml :=
         if (count($search-hits) > 0)
@@ -509,6 +512,23 @@ declare function edwebapi:get-object-with-search(
             map:entry("xml", $xml),
             map:entry(
                 "search-results",
+                if ($search-type = 'distance')
+                then
+                    let $wg1 := substring-before($search-query, '~')
+                    let $wg2 := substring-after($search-query, '~')
+                    return
+                        let $matches :=
+                        local:get-matches(normalize-space($xml),
+                        "(("||$wg1||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg2||"))|(("||$wg2||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg1||"))"
+                        )
+                        return for $match in $matches
+                        return
+                                map:merge ((
+                                    map:entry("keyword-1", substring-before($match, " ")),
+                                    map:entry("context", $match),
+                                    map:entry("keyword-2", functx:substring-after-last($match, " "))
+                                ))
+                else
                 for $hit in $search-hits
                 let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
                 (: TODO delete following line? :)
@@ -535,32 +555,29 @@ declare function edwebapi:build-search-query(
     $slop as xs:string?
 ) as item()
 {
-    let $query :=
-        switch ($search-type)
-        case "regex" return 
-            <bool>
-            {
-                for $word in tokenize($search-query, ' ' )
-                return
-                    <regex occur="must">{$word}</regex>
-            }
-            </bool>
-        case "phrase" return <phrase slop="{$slop}">{$search-query}</phrase>
-        case "lucene" return $search-query
-        default return 
-            <bool>
-            {
-                for $word in tokenize($search-query, ' ' )
-                return
-                    <term occur="must">{$word}</term>
-            }
-            </bool>
-    let $query := 
-        if ($search-type = "lucene")
-        then $query
-        else
-            <query>{$query}</query>
-    return $query
+    switch ($search-type)
+    case "regex" return
+        <query><bool>
+        {
+            for $word in tokenize($search-query, ' ' )
+            return
+                <regex occur="must">{$word}</regex>
+        }
+        </bool></query>
+    case "distance" return
+        if (not(contains($search-query, '~')))
+        then error(xs:QName("edwebapi"), "In a search of type 'distance' the 'search' must contain '~' to separate the search terms.")
+        else <query><near slop="{$slop}" ordered="no"><regex>{substring-before($search-query,'~')}</regex><regex>{substring-after($search-query,'~')}</regex></near></query>
+    case "phrase" return <query><phrase slop="{$slop}">{$search-query}</phrase></query>
+    case "lucene" return $search-query
+    default return
+        <query><bool>
+        {
+            for $word in tokenize($search-query, ' ' )
+            return
+                <term occur="must">{$word}</term>
+        }
+        </bool></query>
 };
 
 declare function local:find-part-id-for-node(
@@ -948,7 +965,6 @@ declare function edwebapi:get-object-list-with-search(
     let $object-id := $object-def/appconf:item/appconf:id/string()
     let $list := $object-list?list
     let $query-function := ".//"||$search-xpath||"[ft:query(., $query)]"  
-    
     let $list :=
         for $object in $objects-xml
         let $id := string(util:eval-inline($object,$object-id))
@@ -959,7 +975,6 @@ declare function edwebapi:get-object-list-with-search(
             else xs:float(0.0)
         let $search-hits := 
             if ($search-xpath||$search-query||"" != "")
-            (: then util:eval-inline($object, ".//" || $search-xpath)[ft:query(., $search-query)] :)
             then util:eval-inline($object, $query-function)
             else ()
         return
@@ -969,6 +984,23 @@ declare function edwebapi:get-object-list-with-search(
                     $object-map,
                     map:entry(
                         "search-results",
+                        if ($search-type = 'distance')
+                        then
+                            (: let $wg1 := substring-before($search-query, '~')
+                            let $wg2 := substring-after($search-query, '~')
+                            return
+                                let $matches :=
+                                local:get-matches(normalize-space($search-hits[1]),
+                                "(("||$wg1||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg2||"))|(("||$wg2||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg1||"))"
+                                )
+                                return for $match in $matches
+                                return
+                                        map:merge ((
+                                            map:entry("keyword-1", substring-before($match, " ")),
+                                            map:entry("context", $match),
+                                            map:entry("keyword-2", functx:substring-after-last($match, " "))
+                                        )) :) ()
+                        else
                         for $hit in $search-hits
                         let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
                         (: TODO delete following line? :)
@@ -981,13 +1013,26 @@ declare function edwebapi:get-object-list-with-search(
                                 map:entry("score", ft:score($hit))
                             ))
                     ),
-                    map:entry("score", $search-score)                
+                    map:entry("score", $search-score)
                 ))
             )
     let $list := map:merge($list)
     let $object-list :=
         map:put($object-list, "list", $list)
     return $object-list
+};
+
+declare function local:get-matches($string as xs:string?, $regex as xs:string) as xs:string* {
+   if (matches($string, $regex))
+   then (
+      let $match := replace($string, '^.*?('||$regex||').*', '$1')
+      return (
+         $match
+         (: , :)
+         (: local:get-matches(replace($string, '^.*?'||$match, ''), $regex) :)
+      )
+   )
+   else ()
 };
 
 (:~
