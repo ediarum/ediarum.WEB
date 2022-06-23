@@ -345,6 +345,21 @@ components:
           description: type of object
           example: manuscripts
         search-results:
+          oneOf:
+            - type: object
+              properties:
+                keyword-1:
+                  type: string
+                  description: first keyword of match
+                  example: "whole"
+                keyword-2:
+                  type: string
+                  description: last keyword of match
+                  example: "text"
+                context:
+                  type: string
+                  description: context of the match incl. the keywords
+                  example: "whole phrase of the search text"
           type: array
           description: contains an array of hits, if a search was triggered.
           items:
@@ -502,7 +517,7 @@ components:
     searchParam:
       name: search
       in: query
-      description: Query expression to search within the object.
+      description: Query expression to search within the object. With `distance` search it must contains a `~` to separate the two regular expressions.
       schema:
         type: string
     searchTypeParam:
@@ -515,6 +530,7 @@ components:
           - regex # for one or more words (separated by space) using regular expressions
           - phrase # for a query of multiple words. With `slop` the distance can be defined (default is 1).
           - lucene # for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
+          - distance # for a distance query using regular expressions.
     searchXpathParam:
       name: search-xpath
       in: query
@@ -524,7 +540,7 @@ components:
     slopParam:
       name: slop
       in: query
-      description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
+      description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase` or `search-type=distance`.
       schema:
         type: integer
     kwicWidthParam:
