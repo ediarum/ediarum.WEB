@@ -494,7 +494,7 @@ declare function edwebapi:get-object-with-search(
     let $search-hits :=
         if ($search-xpath||$search-query||"" != "")
         then
-            if ($search-type = 'distance')
+            if ($search-type = 'distance' or $search-type = 'distance-all-matches')
             then ()
             else util:eval-inline($xml, $query-function)
         else ()
@@ -527,6 +527,21 @@ declare function edwebapi:get-object-with-search(
                                     map:entry("keyword-1", substring-before($match, " ")),
                                     map:entry("context", $match),
                                     map:entry("keyword-2", functx:substring-after-last($match, " "))
+                                ))
+                else if ($search-type = 'distance-all-matches')
+                then
+                    let $wg1 := substring-before($search-query, '~')
+                    let $wg2 := substring-after($search-query, '~')
+                    return
+                        let $query := "(("||$wg1||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg2||"))|(("||$wg2||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg1||"))"
+                        let $matches := functx:get-matches(normalize-space($xml), $query)
+                        return for $match in $matches
+                        let $m-1 := functx:get-matches($match, $query)[1]
+                        return
+                                map:merge ((
+                                    map:entry("keyword-1", substring-before($m-1, " ")),
+                                    map:entry("context", $m-1),
+                                    map:entry("keyword-2", functx:substring-after-last($m-1, " "))
                                 ))
                 else
                 for $hit in $search-hits
@@ -565,6 +580,10 @@ declare function edwebapi:build-search-query(
         }
         </bool></query>
     case "distance" return
+        if (not(contains($search-query, '~')))
+        then error(xs:QName("edwebapi"), "In a search of type 'distance' the 'search' must contain '~' to separate the search terms.")
+        else <query><near slop="{$slop}" ordered="no"><regex>{substring-before($search-query,'~')}</regex><regex>{substring-after($search-query,'~')}</regex></near></query>
+    case "distance-all-matches" return
         if (not(contains($search-query, '~')))
         then error(xs:QName("edwebapi"), "In a search of type 'distance' the 'search' must contain '~' to separate the search terms.")
         else <query><near slop="{$slop}" ordered="no"><regex>{substring-before($search-query,'~')}</regex><regex>{substring-after($search-query,'~')}</regex></near></query>
@@ -985,21 +1004,22 @@ declare function edwebapi:get-object-list-with-search(
                     map:entry(
                         "search-results",
                         if ($search-type = 'distance')
+                        then ()
+                        else if ($search-type = 'distance-all-matches')
                         then
-                            (: let $wg1 := substring-before($search-query, '~')
+                            let $wg1 := substring-before($search-query, '~')
                             let $wg2 := substring-after($search-query, '~')
                             return
-                                let $matches :=
-                                local:get-matches(normalize-space($search-hits[1]),
-                                "(("||$wg1||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg2||"))|(("||$wg2||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg1||"))"
-                                )
+                                let $query := "(("||$wg1||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg2||"))|(("||$wg2||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg1||"))"
+                                let $matches := functx:get-matches(normalize-space($object), $query)
                                 return for $match in $matches
+                                let $m-1 := functx:get-matches($match, $query)[1]
                                 return
-                                        map:merge ((
-                                            map:entry("keyword-1", substring-before($match, " ")),
-                                            map:entry("context", $match),
-                                            map:entry("keyword-2", functx:substring-after-last($match, " "))
-                                        )) :) ()
+                                map:merge ((
+                                    map:entry("keyword-1", substring-before($m-1, " ")),
+                                    map:entry("context", $m-1),
+                                    map:entry("keyword-2", functx:substring-after-last($m-1, " "))
+                                ))
                         else
                         for $hit in $search-hits
                         let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)

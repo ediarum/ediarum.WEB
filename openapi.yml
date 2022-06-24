@@ -68,20 +68,9 @@ paths:
           description: How many items should be return. To be used with `page` or `from`.
           schema:
             type: integer
-        - name: search
-          in: query
-          description: Filters the objects by a search. Can be combined with other filters. To be used with `show=(all, compact, list)`.
-          schema:
-            type: string
-        - name: search-type
-          in: query
-          description: To be used with `search`. If not set, the exact matches are found. Multiple words are separated with a space.
-          schema:
-            type: string
-            enum:
-              - regex  # for one or more words (separated by space) using regular expressions
-              - phrase # for a query of multiple words. With `slop` the distance can be defined (default is 1).
-              - lucene # for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
+        - $ref: '#/components/parameters/searchParam'
+          description: Query expression to search within the object. With `distance` search it must contains a `~` to separate the two regular expressions. Filters the objects by a search. Can be combined with other filters. To be used with `show=(all, compact, list)`.
+        - $ref: '#/components/parameters/searchTypeParam'
         - name: show
           in: query
           description: What should be retrieved
@@ -93,11 +82,7 @@ paths:
               - filter # show the filter definitions
               - list # show objects matching the filter criteria
               - full # show relations with full objects in 'subject' and 'object'
-        - name: slop
-          in: query
-          description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/slopParam"
       responses:
         '200':
           description: OK
@@ -523,14 +508,22 @@ components:
     searchTypeParam:
       name: search-type
       in: query
-      description: To be used with `search`. If not set the exact matches are found. Multiple words are separated with a space.
+      description: |
+        To be used with `search`. If not set the exact matches are found. Multiple words are separated with a space.
+
+        - `regex` for one or more words (separated by space) using regular expressions;
+        - `phrase` for a query of multiple words. With `slop` the distance can be defined (default is 1);
+        - `lucene` for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>;
+        - `distance` for a distance query using regular expressions, showing only the first match of each object;
+        - `distance-all-matches` for a distance query showing all matches.
       schema:
         type: string
         enum:
-          - regex # for one or more words (separated by space) using regular expressions
-          - phrase # for a query of multiple words. With `slop` the distance can be defined (default is 1).
-          - lucene # for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
-          - distance # for a distance query using regular expressions.
+          - regex
+          - phrase
+          - lucene
+          - distance
+          - distance-all-matches
     searchXpathParam:
       name: search-xpath
       in: query
