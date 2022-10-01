@@ -838,7 +838,8 @@ declare %templates:wrap function edweb:load-inner-navigation(
  :)
 declare %templates:wrap function edweb:load-objects(
     $node as node(),
-    $model as map(*)
+    $model as map(*),
+    $order as xs:string?
 ) as map(*)
 {
     let $object-type := request:get-attribute("object-type")
@@ -869,12 +870,12 @@ declare %templates:wrap function edweb:load-objects(
         ))
 
     let $filter-params := edweb:params-load((map:keys($filters)))
-    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
+    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order="||$order)
     let $filtered-objects :=
         if (edweb:params-insert($filter-params) != "")
         then
             edwebcontroller:api-get(
-                "/api/"||$object-type||"?show=list&amp;order=label&amp;"
+                "/api/"||$object-type||"?show=list&amp;order="||$order||"&amp;"
                 ||edweb:params-insert($filter-params)
             )
         else $all-objects
