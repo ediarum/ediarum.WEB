@@ -56,7 +56,7 @@ let $result :=
     if ($is-object and $show eq 'compact')
     then 
         edwebapi:load-map-from-cache(
-            "edwebapi:get-object-list-without-filter", 
+            xs:QName("edwebapi:get-object-list-without-filter"),
             [$app-target, $object-type, $limit], 
             $app-target,
             $cache = "no", 
@@ -65,7 +65,7 @@ let $result :=
     else if ($is-object) 
     then
         edwebapi:load-map-from-cache(
-            "edwebapi:get-object-list", 
+            xs:QName("edwebapi:get-object-list"),
             [$app-target, $object-type],
             $app-target, 
             $cache = "no",
@@ -76,7 +76,7 @@ let $result :=
         if ($show = ("", "list", "full"))
         then
         edwebapi:load-map-from-cache(
-            "edwebapi:get-relation-list",
+            xs:QName("edwebapi:get-relation-list"),
             [$app-target, $object-type, $show, $limit],
             $app-target,
             $cache = "no",

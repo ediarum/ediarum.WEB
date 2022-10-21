@@ -93,7 +93,7 @@ declare function edwebapi:get-all(
             if ($with-filter)
             then
                 edwebapi:load-map-from-cache(
-                    "edwebapi:get-object-list", 
+                    xs:QName("edwebapi:get-object-list"),
                     [$app-target, $object-type],
                     $app-target,
                     $cache = "no", 
@@ -101,7 +101,7 @@ declare function edwebapi:get-all(
                 )
             else
                 edwebapi:load-map-from-cache(
-                    "edwebapi:get-object-list-without-filter", 
+                    xs:QName("edwebapi:get-object-list-without-filter"),
                     [$app-target, $object-type, $limit], 
                     $app-target,
                     $cache = "no", 
@@ -234,14 +234,14 @@ declare function local:list-part-ids(
  : Retrieves and stores the result of a function in cache. Only executes the function if no cache
  : exists or if the cache is out of date because data updates.
  : 
- : @param $function-name the name of the function to apply
+ : @param $function-qname the qname of the function to apply
  : @param $params an array of the function params. IMPORTANT: the first parameter must be 'app-target'.
  : $node-set the node set the cache date is compared to
  : @reload if true the cache is always rebuild
  : @return the result of the function as a map.
  :)
 declare function edwebapi:load-map-from-cache(
-    $function-name as xs:string, 
+    $function-qname as xs:string,
     $params as array(*), 
     $app-target as xs:string?, 
     $soft-reload as xs:boolean?,
@@ -253,7 +253,7 @@ declare function edwebapi:load-map-from-cache(
         if (xmldb:collection-available($app-target||"/"||$edwebapi:cache-collection))
         then ()
         else xmldb:create-collection($app-target, $edwebapi:cache-collection)
-    let $cache-file-name := substring-after($function-name, ":")||"-"
+    let $cache-file-name := local-name-from-QName($function-qname)||"-"
         ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".xml"
     let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
     let $cache-exists := exists($load-cache)
@@ -268,7 +268,7 @@ declare function edwebapi:load-map-from-cache(
         then $load-map
         (: Start caching if hard-reload is set :)
         else if ($hard-reload)
-        then local:build-and-load-cache($function-name, $params, $app-target, $cache-file-name)
+        then local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
         (: Start caching if soft-reload is set and cache isn't up to date :)
         else if ($cache-exists and $soft-reload)
         then 
@@ -285,17 +285,17 @@ declare function edwebapi:load-map-from-cache(
             return 
                 if (count($last-modified)=0)
                 then $load-map
-                else local:build-and-load-cache($function-name, $params, $app-target, $cache-file-name)
+                else local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
         (: Load from cache if cache exists :)
         else if ($cache-exists)
         then $load-map
         (: Start caching :)
-        else local:build-and-load-cache($function-name, $params, $app-target, $cache-file-name)
+        else local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
     return $load-map
 };
 
 declare function local:build-and-load-cache(
-    $function-name as xs:string,
+    $function-qname as xs:QName,
     $params as array(*),
     $app-target as xs:string?,
     $cache-file-name as xs:string
@@ -315,7 +315,7 @@ declare function local:build-and-load-cache(
     (: If cache isn't locked :)
         let $set-lock-for-cache-file := xmldb:store($collection-uri,$cache-file-name||".lock", <root>Locked since {current-dateTime()}.</root>)
         let $arity := array:size($params)
-        let $function := function-lookup(xs:QName($function-name), $arity)
+        let $function := function-lookup($function-qname, $arity)
         let $map := apply($function, $params)
         let $store := xmldb:store($collection-uri, $cache-file-name, <json>{serialize($map,
             <output:serialization-parameters><output:method>json</output:method>
@@ -415,7 +415,7 @@ declare function edwebapi:get-object(
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
                 for $r in edwebapi:load-map-from-cache(
-                    "edwebapi:get-relation-list",
+                    xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, "", ()],
                     $app-target,
                     "" = "no",
@@ -892,7 +892,7 @@ declare function edwebapi:get-object-list(
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
                 for $r in edwebapi:load-map-from-cache(
-                    "edwebapi:get-relation-list",
+                    xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, "", ()],
                     $app-target,
                     "" = "no",
@@ -1164,7 +1164,7 @@ declare function edwebapi:get-search-results(
         (: Get object list with search :)
         let $object-list := 
            edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list", 
+                xs:QName("edwebapi:get-object-list"),
                 [$app-target, $object-type],
                 $app-target,
                 $cache = "no",
@@ -1329,7 +1329,7 @@ declare function edwebapi:get-relation-list(
     let $objects :=
         let $map :=
             edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list-without-filter",
+                xs:QName("edwebapi:get-object-list-without-filter"),
                 [$app-target, $object-type, $limit],
                 $app-target,
                 $cache = "no",
@@ -1340,7 +1340,7 @@ declare function edwebapi:get-relation-list(
     let $subjects :=
         let $map :=
             edwebapi:load-map-from-cache(
-                "edwebapi:get-object-list-without-filter",
+                xs:QName("edwebapi:get-object-list-without-filter"),
                 [$app-target, $subject-type, $limit],
                 $app-target,
                 $cache = "no",
