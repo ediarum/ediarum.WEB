@@ -262,10 +262,6 @@ components:
           type: integer
           description: number of all objects
           example: 704
-        results-shown:
-          type: integer
-          description: number of objects in `list`. Equals to `results-found` if equal or lower then the `limit` parameter
-          example: 12
     Filter:
       type: object
       properties:
@@ -313,9 +309,14 @@ components:
           example: Manuscript No. 012345
         label-filter:
           type: array
-          description: values if defined
+          description: map of label filters
           items:
-            type: string
+            type: object
+            description: values for this label
+            additionalProperties:
+              type: array
+              items:
+                type: string
         labels:
           type: array
           description: list of labels of object
@@ -332,7 +333,9 @@ components:
           required:
             - "id"
           additionalProperties:
-            type: string
+            type: array
+            items:
+              type: string
         object-type:
           type: string
           description: type of object

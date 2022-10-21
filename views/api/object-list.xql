@@ -66,7 +66,7 @@ let $result :=
     then
         edwebapi:load-map-from-cache(
             "edwebapi:get-object-list", 
-            [$app-target, $object-type, $limit], 
+            [$app-target, $object-type],
             $app-target, 
             $cache = "no",
             $cache = "reset"
