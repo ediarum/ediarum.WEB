@@ -94,15 +94,15 @@ declare function edwebapi:get-all(
             then
                 edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-object-list"),
-                    [$app-target, $object-type],
+                    [$app-target, $object-type, true()],
                     $app-target,
                     $cache = "no", 
                     $cache = "reset"
                 )
             else
                 edwebapi:load-map-from-cache(
-                    xs:QName("edwebapi:get-object-list-without-filter"),
-                    [$app-target, $object-type, $limit], 
+                    xs:QName("edwebapi:get-object-list"),
+                    [$app-target, $object-type, false()], 
                     $app-target,
                     $cache = "no", 
                     $cache = "reset"
@@ -747,11 +747,11 @@ declare function edwebapi:eval-filters-for-object(
                     for $filter in $object-def/appconf:filters/appconf:filter[not(@type='relation')]
                     return
                         map:entry(string($filter/@xml:id), array { ft:field($object-xml, $object-type||"---"||$filter/@xml:id) ! (if (. != "") then . else ())} ),
-                    for $relation-filter in $object-def/appconf:filters/appconf:filter[@type='relation']
-                    return 
+                    for $relation-filter in $object-def/appconf:filters/appconf:filter[@type='relation'][appconf:relation/@id = map:keys($relations-map)]
+                    return
                         map:entry(
-                            $relation-filter/@xml:id/string(), 
-                            array { 
+                            $relation-filter/@xml:id/string(),
+                            array {
                                 $relations-map?($relation-filter/appconf:relation/@id/string())?($object?id)
                             }
                         )
@@ -769,62 +769,19 @@ declare function edwebapi:eval-filters-for-object(
         ))
 };
 
-declare function edwebapi:eval-id-filters-for-object(
-    $app-target as xs:string,
-    $object-def as node(),
-    $object as map(*),
-    $object-xml as node()
-) as map(*)
-{
-    let $cache := ""
-    let $filters := $object-def/appconf:filters/appconf:filter[appconf:type="id"]
-    let $data-collection := edwebapi:data-collection($app-target)
-    let $filter-values :=
-        for $f in $filters
-        let $filter-id := $f/@xml:id/string()
-        let $filter-objects :=
-            if (ends-with($f/appconf:xpath/string(),')'))
-            then
-                util:eval-inline($object-xml, $f/appconf:xpath/string())
-            else if (ends-with($f/appconf:xpath/string(),']'))
-            then
-                util:eval-inline($object-xml, $f/appconf:xpath/string())
-            else
-                try {
-                    util:eval-inline($object-xml, $f/appconf:xpath/string()||"/normalize-space()")
-                }
-                catch * {
-                    util:eval-inline($object-xml, $f/appconf:xpath/string())
-                }
-        let $filter-label-function := util:eval($f/appconf:label-function[@type='xquery'])
-        return 
-            map:entry(
-                $filter-id, 
-                for $fo in $filter-objects 
-                return $filter-label-function($fo)
-            )
-    let $filter-values :=
-        (
-            $filter-values,
-            map:entry("id", $object?id)
-        )
-    return 
-        map:merge ((
-            map:entry("filter", map:merge(( $filter-values )) )
-        ))
-};
-
 (:~
  : The function retrieves objects from the data.
  :
  : @param $app-target the collection name where the app is installed, e.g. /db/apps/project.WEB
  : @param $object-type the xml:id of the object-type
+ : @param $with-filters if false() no filter properties are included.
  : @return a map which contains "date-time", "type"="objects", "list" with an array of object
  : maps containing "id", "absolute-resource-id" "object-type", "label", "filter", "label-filter".
  :)
 declare function edwebapi:get-object-list(
     $app-target as xs:string,
-    $object-type as xs:string
+    $object-type as xs:string,
+    $with-filters as xs:boolean
 ) as map(*) 
 {
     let $object-type := string($object-type)
@@ -836,7 +793,6 @@ declare function edwebapi:get-object-list(
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
 
-    let $filters := $object-def/appconf:filters/appconf:filter
     let $filter :=
         map:merge((
             map:entry(
@@ -853,7 +809,7 @@ declare function edwebapi:get-object-list(
                         )
                 ))
             ),
-            for $f at $pos in $filters
+            for $f at $pos in $object-def/appconf:filters/appconf:filter
             let $key := $f/@xml:id/string()
             return
                 map:entry(
@@ -877,6 +833,9 @@ declare function edwebapi:get-object-list(
     let $count := count($objects-xml)
     let $relations :=
         map:merge((
+            if (not($with-filters))
+            then ()
+            else (
             for $f in $object-def/appconf:filters/appconf:filter[@type='relation']
             let $rel-type-name := $f/appconf:relation/@id/string()
             return
@@ -910,7 +869,7 @@ declare function edwebapi:get-object-list(
                             "Invalid configuration parameter value, only 'id', 'predicate', and 'id+predicate' allowed."
                         )
                 )
-            )
+            ))
         ))
 
     let $objects :=
@@ -1047,55 +1006,6 @@ declare function local:get-matches($string as xs:string?, $regex as xs:string) a
 };
 
 (:~
- : This function retrieves all requested objects without analyzing the filter values. This avoids
- : an endless loading loop because of relation filters and relations itself.
- :
- :)
-declare function edwebapi:get-object-list-without-filter(
-    $app-target as xs:string,
-    $object-type as xs:string,
-    $limit as xs:string?
-) as map(*) 
-{
-    let $config := edwebapi:get-config($app-target)
-    let $object-type := string($object-type)
-    let $object-def := $config//appconf:object[@xml:id=$object-type]
-    let $namespaces :=
-        for $ns in $object-def/appconf:item/appconf:namespace
-        let $prefix := $ns/@id/string()
-        let $namespace-uri := $ns/string()
-        return util:declare-namespace($prefix, $namespace-uri)
-    
-    let $objects-xml := edwebapi:get-objects($app-target, $object-type)
-    let $count := count($objects-xml)
-    let $limit :=
-        if ($limit||"" != "")
-        then number($limit)
-        else $edwebapi:object-limit
-    let $objects := 
-        for $object in $objects-xml[position() <= $limit]
-        let $object-map := edwebapi:eval-base-data-for-object($object-def, $object)
-        let $id-filter-map := edwebapi:eval-id-filters-for-object($app-target, $object-def, $object-map, $object)
-        return 
-            map:entry(
-                $object-map?id,
-                map:merge(( 
-                    $object-map,
-                    $id-filter-map
-                ))
-            )
-    return
-        map:merge((
-            map:entry("date-time", current-dateTime()),
-            map:entry("type", "objects"),
-            map:entry("filter", map:merge(( )) ),
-            map:entry("results-found", $count),
-            map:entry("results-shown", if ($count < $limit) then $count else $limit),
-            map:entry("list", map:merge(( $objects )) )
-        ))
-};
-
-(:~
  : Retrieves a list of objects.
  :
  : @param $data-collection the path to the project data collection
@@ -1165,7 +1075,7 @@ declare function edwebapi:get-search-results(
         let $object-list := 
            edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-object-list"),
-                [$app-target, $object-type],
+                [$app-target, $object-type, $true()],
                 $app-target,
                 $cache = "no",
                 $cache = "reset"
@@ -1329,8 +1239,8 @@ declare function edwebapi:get-relation-list(
     let $objects :=
         let $map :=
             edwebapi:load-map-from-cache(
-                xs:QName("edwebapi:get-object-list-without-filter"),
-                [$app-target, $object-type, $limit],
+                xs:QName("edwebapi:get-object-list"),
+                [$app-target, $object-type, false()],
                 $app-target,
                 $cache = "no",
                 $cache = "reset"
@@ -1340,8 +1250,8 @@ declare function edwebapi:get-relation-list(
     let $subjects :=
         let $map :=
             edwebapi:load-map-from-cache(
-                xs:QName("edwebapi:get-object-list-without-filter"),
-                [$app-target, $subject-type, $limit],
+                xs:QName("edwebapi:get-object-list"),
+                [$app-target, $subject-type, false()],
                 $app-target,
                 $cache = "no",
                 $cache = "reset"
