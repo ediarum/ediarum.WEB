@@ -693,10 +693,7 @@ declare function edwebapi:get-object-xml(
         let $prefix := $ns/@id/string()
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
-    let $data-collection := edwebapi:data-collection($app-target)
-    let $collection := $object-def/appconf:collection
-    let $root := $object-def/appconf:item/appconf:root
-    let $list := edwebapi:get-objects($data-collection, $collection, $root, $object-def)
+    let $list := edwebapi:get-objects($app-target, $object-type)
 
     let $id-xpath := $object-def/appconf:item/appconf:id
     let $find-expression := $id-xpath||"='"||$object-id||"'"
@@ -705,8 +702,7 @@ declare function edwebapi:get-object-xml(
     let $xml :=
         if ($item[1])
         then $item[1]
-        else error(xs:QName("edwebapi:get-object-001"), "Can't find "||$root||"["||$find-expression
-            ||"] in collection "||$collection||" in "||$data-collection)
+        else error(xs:QName("edwebapi:get-object-001"), "Can't find object with id "||$object-id)
     return $xml
 };
 
@@ -832,11 +828,8 @@ declare function edwebapi:get-object-list(
 ) as map(*) 
 {
     let $object-type := string($object-type)
-    let $data-collection := edwebapi:data-collection($app-target)
     let $config := edwebapi:get-config($app-target)
     let $object-def := $config//appconf:object[@xml:id=$object-type]
-    let $collection := $object-def/appconf:collection
-    let $root := $object-def/appconf:item/appconf:root
     let $namespaces :=
         for $ns in $object-def/appconf:item/appconf:namespace
         let $prefix := $ns/@id/string()
@@ -880,7 +873,7 @@ declare function edwebapi:get-object-list(
                 )
         ))
 
-    let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root, $object-def)
+    let $objects-xml := edwebapi:get-objects($app-target, $object-type)
     let $count := count($objects-xml)
     let $relations :=
         map:merge((
@@ -953,18 +946,15 @@ declare function edwebapi:get-object-list-with-search(
     $slop as xs:string?
 ) as map(*)
 {
-    let $data-collection := edwebapi:data-collection($app-target)
     let $config := edwebapi:get-config($app-target)
     let $object-type := string($object-type)
     let $object-def := $config//appconf:object[@xml:id=$object-type]
-    let $collection := $object-def/appconf:collection
     let $namespaces :=
         for $ns in $object-def/appconf:item/appconf:namespace
         let $prefix := $ns/@id/string()
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
-    let $root := $object-def/appconf:item/appconf:root
-    let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root, $object-def)
+    let $objects-xml := edwebapi:get-objects($app-target, $object-type)
     let $kwic-width := 
         if ($kwic-width||"" = "")
         then "30"
@@ -1070,15 +1060,13 @@ declare function edwebapi:get-object-list-without-filter(
     let $config := edwebapi:get-config($app-target)
     let $object-type := string($object-type)
     let $object-def := $config//appconf:object[@xml:id=$object-type]
-    let $collection := $object-def/appconf:collection
     let $namespaces :=
         for $ns in $object-def/appconf:item/appconf:namespace
         let $prefix := $ns/@id/string()
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
-    let $root := $object-def/appconf:item/appconf:root
-    let $data-collection := edwebapi:data-collection($app-target)
-    let $objects-xml := edwebapi:get-objects($data-collection, $collection, $root, $object-def)
+    
+    let $objects-xml := edwebapi:get-objects($app-target, $object-type)
     let $count := count($objects-xml)
     let $limit :=
         if ($limit||"" != "")
@@ -1116,13 +1104,16 @@ declare function edwebapi:get-object-list-without-filter(
  : @return a list of nodes.
  :)
 declare function edwebapi:get-objects(
-    $data-collection as xs:string, 
-    $collection as xs:string, 
-    $root as xs:string,
-    $object-def as node()
-) as node()* 
+    $app-target as xs:string,
+    $object-type as xs:string
+) as node()*
 {
-    let $object-type := $object-def/@xml:id/string()
+    let $init-indices := local:init-search-indices($app-target)
+    let $data-collection := edwebapi:data-collection($app-target)
+    let $config := edwebapi:get-config($app-target)
+    let $object-def := $config//appconf:object[@xml:id=$object-type]
+    let $collection := $object-def/appconf:collection
+    let $root := $object-def/appconf:item/appconf:root
     let $filters := $object-def/appconf:filters/appconf:filter/@xml:id/string()
     return
     if (xmldb:collection-available($data-collection||$collection))
