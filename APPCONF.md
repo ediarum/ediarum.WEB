@@ -91,7 +91,8 @@ The basic information for an object type defines where to find the objects in th
 - `name` name of the object type. Can be used in the frontend.
 - `collection` a relative path to the collection or to a resource where to search for objects.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
-- `item/root` XPath expression of the root element of every object.
+- `item/root` XPath expression of the root element of every object. It only must contain a qualified name, e.g. `tei:TEI`.
+- `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as objects.
 - `item/id` XPath expression where to find the ID of an object. This is also used as a ID property (see below).
 - `label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one node as parameter: `function($node) { ... }`.
 
@@ -102,6 +103,7 @@ The basic information for an object type defines where to find the objects in th
     <item>
         <namespace id="tei">http://www.tei-c.org/ns/1.0</namespace>
         <root>tei:TEI</root>
+        <condition>@type = 'person'</condition>
         <id>.//tei:publicationStmt/tei:idno</id>
         <label type="xpath">.//(tei:head[@type='entry']/tei:persName | tei:div[@subtype="otherNames"]//tei:p)/normalize-space()</label>
     </item>
@@ -140,7 +142,7 @@ All property definitions share the following structure:
   - `intersect` multiple properties can be selected, items which have all of the selected properties are shown.
   - `greater-than` for numeric properties. Only items with values greater than a defined one are shown.
   - `lower-than` for numeric properties. Only item with values lower than a defined one are shown.
-- `label-function` with `@type='xquery'` a XQuery function which can manipulate the property values further. It receives always one string: `function($string) { ... }`.
+- optional `label-function` with `@type='xquery'` a XQuery function which can manipulate the property values further. It receives always one string: `function($string) { ... }`.
 
 Example:
 

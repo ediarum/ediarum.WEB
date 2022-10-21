@@ -1537,17 +1537,103 @@ declare function local:init-search-indices(
 
     for $collection in $collections
     let $xconf-collection := $xconf-root || $data-collection || $collection
-    (: Security check, because files only should be created within xconf-root. :)
-    let $check :=
-        if (contains($xconf-collection,'..'))
-        then error(xs:QName("edwebapi:local-init-search-indices-001"), "Upwards pointing paths ('..') are forbidden: "||$xconf-collection)
-        else ()
+    (: Security check, because files only should be created within xconf-root.  :)
+    where not($xconf-collection => contains('..'))
+    return
     let $xconf-path := $xconf-collection ||'/collection.xconf'
 
     let $objects := $config//appconf:object[appconf:collection = $collection]
-    let $index := 
-        for $obj in $objects[appconf:lucene] 
+
+    let $lucene-index :=
+        for $obj in $objects[appconf:lucene]
         return $obj/appconf:lucene/functx:change-element-ns-deep(., $xconf-ns, '')
+
+    let $xconf :=
+
+<collection xmlns="http://exist-db.org/collection-config/1.0">
+    <index xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:util="http://exist-db.org/xquery/util" xmlns:tei="http://www.tei-c.org/ns/1.0">
+        <fulltext default="none" attributes="false"/>
+        <lucene>
+        {   for $root in distinct-values($objects/appconf:item/appconf:root)
+            return
+            <text qname="{$root}">
+            {
+            for $object-def in $objects[appconf:item/appconf:root = $root]
+            let $object-type := $object-def/@xml:id/string()
+            return
+            (
+                <facet dimension="objecttype---{$object-type}" expression="{
+                    if ($object-def/appconf:item/appconf:condition)
+                    then 'not(not('||$object-def/appconf:item/appconf:condition||'))'
+                    else 'true()'
+                }"/>
+                ,
+                <field name="{$object-type}---id" expression="{$object-def/appconf:item/appconf:id/string()}" />
+                ,
+                    let $expression := 
+                        if ($object-def/appconf:item/appconf:label[@type='xpath'])
+                        then
+                            $object-def/appconf:item/appconf:label[@type='xpath']
+                        else if ($object-def/appconf:item/appconf:label[@type='xquery'])
+                        then
+                            "let $f := "||$object-def/appconf:item/appconf:label[@type='xquery']||" return $f(.)"
+                        else ('<no-label-function-defined>')
+                    return 
+                        <field name="{$object-type}---label" expression="{$expression}"/>
+                ,
+                <field name="{$object-type}---absolute-resource-id" expression="util:absolute-resource-id(.)"/>
+                ,
+                    for $filter in $object-def/appconf:filters/appconf:filter[not(appconf:root/@type='label')]
+                    let $expression := 
+                        if ($filter/appconf:label-function[@type='xquery'])
+                        then
+                        "let $f := "||$filter/appconf:label-function[@type='xquery']||" for $node at $pos in "||$filter/appconf:xpath||" return $f($node)"
+                        else $filter/appconf:xpath
+                    return
+                        <field name="{$object-type}---{$filter/@xml:id}" expression="{$expression}"/>
+                ,
+                    for $filter in $object-def/appconf:filters/appconf:filter[appconf:root/@type='label']
+                    let $label-expression := 
+                        if ($object-def/appconf:item/appconf:label[@type='xpath'])
+
+                        then
+                            $object-def/appconf:item/appconf:label[@type='xpath']
+                        else if ($object-def/appconf:item/appconf:label[@type='xquery'])
+                        then
+                            "let $f := "||$object-def/appconf:item/appconf:label[@type='xquery']||" return $f(.)"
+                        else ('<no-label-function-defined>')
+                    let $expression := 
+                        if ($filter/appconf:label-function[@type='xquery'])
+                        then
+                        "let $f := "||$filter/appconf:label-function[@type='xquery']||" for $node at $pos in "||$label-expression||" return $f($node)"
+                        else $filter/appconf:xpath
+                    return
+                        <field name="{$object-type}---{$filter/@xml:id}" expression="{$expression}"/>
+                ,
+                    for $filter in $object-def/appconf:filters/appconf:filter[appconf:root/@type='label']
+                    let $label-expression := 
+                        if ($object-def/appconf:item/appconf:label[@type='xpath'])
+
+                        then
+                            $object-def/appconf:item/appconf:label[@type='xpath']
+                        else if ($object-def/appconf:item/appconf:label[@type='xquery'])
+                        then
+                            "let $f := "||$object-def/appconf:item/appconf:label[@type='xquery']||" return $f(.)"
+                        else ('<no-label-function-defined>')
+                    let $expression := 
+                        if ($filter/appconf:label-function[@type='xquery'])
+                        then
+                        "let $f := "||$filter/appconf:label-function[@type='xquery']||" for $node at $pos in "||$label-expression||" return for $item in $f($node) return $node||'---'||$item"
+                        else $filter/appconf:xpath
+                    return
+                        <field name="{$object-type}---label---{$filter/@xml:id}" expression="{$expression}"/>
+            )}
+            </text>
+        }
+            {$lucene-index/(*:analyzer|*:text|*:inline|*:ignore)}
+        </lucene>
+    </index>
+</collection>
 
     let $index-updated :=
         (: IF INDEX FOUND UPDATE INDEX :)
@@ -1555,11 +1641,11 @@ declare function local:init-search-indices(
         then
             let $weed-out :=
                 for $node in doc($xconf-path)//*:lucene/(*:text|*:analyzer|*:inline|*:ignore)
-                where not(functx:is-node-in-sequence-deep-equal($node, $index/*))
+                where not(functx:is-node-in-sequence-deep-equal($node, $xconf//*:lucene/(*:text|*:analyzer|*:inline|*:ignore)))
                 return true()
             let $insert-new :=
-                let $old-index := doc($xconf-path)//*:lucene//(*:text|*:analyzer|*:inline|*:ignore)
-                for $text in $index/(*:text|*:analyzer|*:inline|*:ignore)
+                let $old-index := doc($xconf-path)//*:lucene/(*:text|*:analyzer|*:inline|*:ignore)
+                for $text in $xconf//*:lucene/(*:text|*:analyzer|*:inline|*:ignore)
                 where not(functx:is-node-in-sequence-deep-equal($text, $old-index))
                 return true()
             return (true() = ($weed-out, $insert-new, false()))
@@ -1568,20 +1654,11 @@ declare function local:init-search-indices(
     let $store-index :=
         if ($index-updated)
         then
-            let $xconf-new :=
-                <collection xmlns="http://exist-db.org/collection-config/1.0">
-                    <index xmlns:telota="http://www.telota.de" xmlns:tei="http://www.tei-c.org/ns/1.0">
-                        <fulltext default="none" attributes="false"/>
-                        <lucene>
-                            {$index/(*:analyzer|*:text|*:inline|*:ignore)}
-                        </lucene>
-                    </index>
-                </collection>
             let $create-xconf-collection :=
                 if (not(xmldb:collection-available($xconf-collection))) 
                 then local:create-collection-from-path($xconf-collection)
                 else ()
-            return xmldb:store($xconf-collection, 'collection.xconf', $xconf-new)
+            return xmldb:store($xconf-collection, 'collection.xconf', $xconf)
         else ()
     return
         if ($index-updated)
