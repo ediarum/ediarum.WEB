@@ -760,9 +760,11 @@ declare function edwebapi:eval-filters-for-object(
                     return 
                         map:entry(
                             $f/@xml:id/string(), 
+                            map:merge((
                             for $fo in $object?labels?* 
                             return 
                                 map:entry($fo, array {ft:field($object-xml, $object-type||"---label---"||$f/@xml:id/string()) ! substring-after(., $fo||"---") ! (if (. != "") then . else ())})
+                            ))
                         )
                 )))
         ))
