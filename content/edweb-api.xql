@@ -241,7 +241,7 @@ declare function local:list-part-ids(
  : @return the result of the function as a map.
  :)
 declare function edwebapi:load-map-from-cache(
-    $function-qname as xs:string,
+    $function-qname as xs:QName,
     $params as array(*), 
     $app-target as xs:string?, 
     $soft-reload as xs:boolean?,
@@ -263,11 +263,8 @@ declare function edwebapi:load-map-from-cache(
         else false()
 
     let $load-map :=
-        (: Block caching if cache is younger than 1 min :)
-        if ($cache-exists and (current-dateTime() < xs:dateTime($load-map?date-time) + xs:dayTimeDuration("PT1M")))
-        then $load-map
-        (: Start caching if hard-reload is set :)
-        else if ($hard-reload)
+       (: Start caching if hard-reload is set :)
+        if ($hard-reload)
         then local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
         (: Start caching if soft-reload is set and cache isn't up to date :)
         else if ($cache-exists and $soft-reload)
