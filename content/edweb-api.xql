@@ -77,38 +77,22 @@ declare function edwebapi:filter-list(
 };
 
 (:~
+ : Retrieves all defined objects with or without filter properties.
  :
+ : @param $app-target the collection name where the app is installed, e.g. project.WEB
+ : @param $with-filters boolean value if filter properties should be shown.
+ : @return a list of objects maps
  :)
 declare function edwebapi:get-all(
     $app-target as xs:string,
-    $cache as xs:string?,
-    $with-filter as xs:boolean
-) 
+    $with-filters as xs:boolean
+) as map(*)
 {
-    let $object-types := edwebapi:get-config($app-target)//appconf:object/@xml:id
-    let $found-objects :=
-        for $object-type in $object-types
-        let $map := edwebapi:get-object-list($app-target, $object-type, $with-filter)
-            (: if ($with-filter)
-            then
-                edwebapi:load-map-from-cache(
-                    xs:QName("edwebapi:get-object-list"),
-                    [$app-target, $object-type, true()],
-                    $app-target,
-                    $cache = "no", 
-                    $cache = "reset"
-                )
-            else
-                edwebapi:load-map-from-cache(
-                    xs:QName("edwebapi:get-object-list"),
-                    [$app-target, $object-type, false()], 
-                    $app-target,
-                    $cache = "no", 
-                    $cache = "reset"
-                ) :)
-        return $map?list
-    return
-        map:merge((map:entry("date-time", current-dateTime()), $found-objects))
+    map:merge((
+        map:entry("date-time", current-dateTime()),
+        for $object-type in edwebapi:get-config($app-target)//appconf:object/@xml:id
+        return edwebapi:get-object-list($app-target, $object-type, $with-filters)?list
+    ))
 };
 
 (:~
