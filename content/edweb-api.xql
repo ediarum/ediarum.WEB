@@ -81,7 +81,6 @@ declare function edwebapi:filter-list(
  :)
 declare function edwebapi:get-all(
     $app-target as xs:string,
-    $limit as xs:string?,
     $cache as xs:string?,
     $with-filter as xs:boolean
 ) 
@@ -89,8 +88,8 @@ declare function edwebapi:get-all(
     let $object-types := edwebapi:get-config($app-target)//appconf:object/@xml:id
     let $found-objects :=
         for $object-type in $object-types
-        let $map :=
-            if ($with-filter)
+        let $map := edwebapi:get-object-list($app-target, $object-type, $with-filter)
+            (: if ($with-filter)
             then
                 edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-object-list"),
@@ -106,7 +105,7 @@ declare function edwebapi:get-all(
                     $app-target,
                     $cache = "no", 
                     $cache = "reset"
-                )
+                ) :)
         return $map?list
     return
         map:merge((map:entry("date-time", current-dateTime()), $found-objects))
