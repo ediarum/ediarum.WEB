@@ -247,10 +247,11 @@ declare function edwebapi:load-map-from-cache(
 
     let $load-map :=
         (: Block caching if cache is younger than 1 min :)
-        if ($cache-exists and (current-dateTime() < xs:dateTime($load-map?date-time) + xs:dayTimeDuration("PT1M")))
-        then $load-map
+        (: if ($cache-exists and (current-dateTime() < xs:dateTime($load-map?date-time) + xs:dayTimeDuration("PT1M")))
+        then $load-map :)
+        (: else  :)
         (: Start caching if hard-reload is set :)
-        else if ($hard-reload)
+        if ($hard-reload)
         then local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
         (: Start caching if soft-reload is set and cache isn't up to date :)
         else if ($cache-exists and $soft-reload)
