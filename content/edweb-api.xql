@@ -225,11 +225,11 @@ declare function local:list-part-ids(
  :)
 declare function edwebapi:load-map-from-cache(
     $function-qname as xs:QName,
-    $params as array(*), 
-    $app-target as xs:string?, 
+    $params as array(*),
+    $app-target as xs:string?,
     $soft-reload as xs:boolean?,
     $hard-reload as xs:boolean?
-) as map(*) 
+) as map(*)
 {
     let $data-collection := edwebapi:data-collection($app-target)
     let $create-cache-collection :=
@@ -240,8 +240,8 @@ declare function edwebapi:load-map-from-cache(
         ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".xml"
     let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
     let $cache-exists := exists($load-cache)
-    let $load-map := 
-        if($cache-exists) 
+    let $load-map :=
+        if($cache-exists)
         then parse-json($load-cache)
         else false()
 
@@ -254,18 +254,18 @@ declare function edwebapi:load-map-from-cache(
         then local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
         (: Start caching if soft-reload is set and cache isn't up to date :)
         else if ($cache-exists and $soft-reload)
-        then 
-            let $node-set as node()* := 
-                if ($data-collection||"" = "") 
+        then
+            let $node-set as node()* :=
+                if ($data-collection||"" = "")
                 then ()
                 else if (xmldb:collection-available($data-collection))
-                then collection($data-collection) (: /* :) 
+                then collection($data-collection) (: /* :)
                 else if (doc-available($data-collection))
                 then doc($data-collection)/*
                 else error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
             let $since := $load-map?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
-            return 
+            return
                 if (count($last-modified)=0)
                 then $load-map
                 else local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)

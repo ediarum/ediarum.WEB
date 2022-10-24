@@ -24,12 +24,33 @@ let $id-type :=
 return
     if ($id-type = "all")
     then
-        let $all-list := edwebapi:get-all($app-target, false())
+        let $all-list :=
+            edwebapi:load-map-from-cache(
+                xs:QName("edwebapi:get-all"),
+                [$app-target, false()],
+                $app-target,
+                $cache = "no",
+                $cache = "reset"
+            )
         return $all-list
     else if ($id-type = "complete")
     then
-        let $all-list := edwebapi:get-all($app-target, true())
+        let $all-list :=
+            edwebapi:load-map-from-cache(
+                xs:QName("edwebapi:get-all"),
+                [$app-target, true()],
+                $app-target,
+                $cache = "no",
+                $cache = "reset"
+            )
         return map:remove($all-list, "date-time")
     else
-        let $all-list := edwebapi:get-all($app-target, true())
+        let $all-list :=
+            edwebapi:load-map-from-cache(
+                xs:QName("edwebapi:get-all"),
+                [$app-target, true()],
+                $app-target,
+                $cache = "no",
+                $cache = "reset"
+            )
         return map:remove($all-list, "date-time")?*[?filter?($id-type)||"" != ""]
