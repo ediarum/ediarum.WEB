@@ -227,35 +227,31 @@ declare function edwebapi:load-map-from-cache(
     $function-qname as xs:QName,
     $params as array(*),
     $app-target as xs:string?,
-    $soft-reload as xs:boolean?,
-    $hard-reload as xs:boolean?
+    $cache as xs:string?
 ) as map(*)
 {
-    let $data-collection := edwebapi:data-collection($app-target)
-    let $create-cache-collection :=
+    let $cache-collection :=
         if (xmldb:collection-available($app-target||"/"||$edwebapi:cache-collection))
-        then ()
+        then $app-target||"/"||$edwebapi:cache-collection
         else xmldb:create-collection($app-target, $edwebapi:cache-collection)
     let $cache-file-name := local-name-from-QName($function-qname)||"-"
         ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".xml"
-    let $load-cache := doc($app-target||"/"||$edwebapi:cache-collection||"/"||$cache-file-name)/json/text()
-    let $cache-exists := exists($load-cache)
-    let $load-map :=
-        if($cache-exists)
-        then parse-json($load-cache)
-        else false()
+    let $cache-data := doc($cache-collection||"/"||$cache-file-name)/json/text()
+    let $map-from-cache :=
+        if(exists($cache-data))
+        then parse-json($cache-data)
+        else map {}
 
-    let $load-map :=
-        (: Block caching if cache is younger than 1 min :)
-        (: if ($cache-exists and (current-dateTime() < xs:dateTime($load-map?date-time) + xs:dayTimeDuration("PT1M")))
-        then $load-map :)
-        (: else  :)
-        (: Start caching if hard-reload is set :)
-        if ($hard-reload)
-        then local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
-        (: Start caching if soft-reload is set and cache isn't up to date :)
-        else if ($cache-exists and $soft-reload)
+    let $start-caching :=
+        if (doc-available($cache-collection||"/"||$cache-file-name||".lock"))
+        then false()
+        else if ($cache = "reset")
+        then true()
+        else if (not(exists($cache-data)))
+        then true()
+        else if ($cache = "no")
         then
+            let $data-collection := edwebapi:data-collection($app-target)
             let $node-set as node()* :=
                 if ($data-collection||"" = "")
                 then ()
@@ -264,49 +260,26 @@ declare function edwebapi:load-map-from-cache(
                 else if (doc-available($data-collection))
                 then doc($data-collection)/*
                 else error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
-            let $since := $load-map?date-time
+            let $since := $map-from-cache?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
             return
                 if (count($last-modified)=0)
-                then $load-map
-                else local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
-        (: Load from cache if cache exists :)
-        else if ($cache-exists)
-        then $load-map
-        (: Start caching :)
-        else local:build-and-load-cache($function-qname, $params, $app-target, $cache-file-name)
-    return $load-map
-};
-
-declare function local:build-and-load-cache(
-    $function-qname as xs:QName,
-    $params as array(*),
-    $app-target as xs:string?,
-    $cache-file-name as xs:string
-) as map(*)
-{
-    let $collection-uri := $app-target||"/"||$edwebapi:cache-collection
+                then false()
+                else true()
+        else false()
     return
-    if (doc-available($collection-uri||"/"||$cache-file-name||".lock"))
-    (: If cache is locked :)
-    then
-        if (doc-available($collection-uri||"/"||$cache-file-name))
-        then
-            let $load-cache := doc($collection-uri||"/"||$cache-file-name)/json/text()
-            return parse-json($load-cache)
-        else map {}
-    else
-    (: If cache isn't locked :)
-        let $set-lock-for-cache-file := xmldb:store($collection-uri,$cache-file-name||".lock", <root>Locked since {current-dateTime()}.</root>)
-        let $arity := array:size($params)
-        let $function := function-lookup($function-qname, $arity)
-        let $map := apply($function, $params)
-        let $store := xmldb:store($collection-uri, $cache-file-name, <json>{serialize($map,
-            <output:serialization-parameters><output:method>json</output:method>
-            </output:serialization-parameters>)}</json>)
-        let $remove-lock-for-cache-file := xmldb:remove($collection-uri, $cache-file-name||".lock")
-        let $load-cache := doc($collection-uri||"/"||$cache-file-name)/json/text()
-        return parse-json($load-cache)
+        if (not($start-caching))
+        then $map-from-cache
+        else
+            let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {current-dateTime()}.</root>)
+            let $arity := array:size($params)
+            let $function := function-lookup($function-qname, $arity)
+            let $map := apply($function, $params)
+            let $store := xmldb:store($cache-collection, $cache-file-name, <json>{serialize($map,
+                <output:serialization-parameters><output:method>json</output:method>
+                </output:serialization-parameters>)}</json>)
+            let $remove-lock-for-cache-file := xmldb:remove($cache-collection, $cache-file-name||".lock")
+            return doc($cache-collection||"/"||$cache-file-name)/json/text() => parse-json()
 };
 
 (:~
@@ -402,8 +375,7 @@ declare function edwebapi:get-object(
                     xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, "", ()],
                     $app-target,
-                    "" = "no",
-                    "" = "reset"
+                    ""
                 )?list?*
                 return map:entry(
                     $r?($rel-perspective),
@@ -840,8 +812,7 @@ declare function edwebapi:get-object-list(
                     xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, "", ()],
                     $app-target,
-                    "" = "no",
-                    "" = "reset"
+                    ""
                 )?list?*
                 return map:entry(
                     $r?($rel-perspective),
@@ -1063,8 +1034,7 @@ declare function edwebapi:get-search-results(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $object-type, $true()],
                 $app-target,
-                $cache = "no",
-                $cache = "reset"
+                $cache
             )
         return 
             edwebapi:get-object-list-with-search(
@@ -1228,8 +1198,7 @@ declare function edwebapi:get-relation-list(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $object-type, false()],
                 $app-target,
-                $cache = "no",
-                $cache = "reset"
+                $cache
             )
         return $map?list?* (: "list-without-filter" :)
 
@@ -1239,8 +1208,7 @@ declare function edwebapi:get-relation-list(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $subject-type, false()],
                 $app-target,
-                $cache = "no",
-                $cache = "reset"
+                $cache
             )
         return $map?list?* (: "list-without-filter" :)
     let $data-collection := edwebapi:data-collection($app-target)

@@ -59,8 +59,7 @@ let $result :=
             xs:QName("edwebapi:get-object-list"),
             [$app-target, $object-type, false()], 
             $app-target,
-            $cache = "no", 
-            $cache = "reset"
+            $cache
         )
     else if ($is-object) 
     then
@@ -68,8 +67,7 @@ let $result :=
             xs:QName("edwebapi:get-object-list"),
             [$app-target, $object-type, true()],
             $app-target, 
-            $cache = "no",
-            $cache = "reset"
+            $cache
         )
     else if ($is-relation)
     then
@@ -79,8 +77,7 @@ let $result :=
             xs:QName("edwebapi:get-relation-list"),
             [$app-target, $object-type, $show, $limit],
             $app-target,
-            $cache = "no",
-            $cache = "reset"
+            $cache
         )
         else "Parameter 'show' must be one of 'list', 'full' or ''."
     else $object-type||" isn't defined for '"||$app-target||"'."
