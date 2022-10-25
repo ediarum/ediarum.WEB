@@ -230,6 +230,10 @@ declare function edwebapi:load-map-from-cache(
     $cache as xs:string?
 ) as map(*)
 {
+    if ($cache = "off")
+    then
+        function-lookup($function-qname, $params => array:size() ) => apply($params)
+    else
     let $cache-collection :=
         if (xmldb:collection-available($app-target||"/"||$edwebapi:cache-collection))
         then $app-target||"/"||$edwebapi:cache-collection
@@ -237,10 +241,6 @@ declare function edwebapi:load-map-from-cache(
     let $cache-file-name := local-name-from-QName($function-qname)||"-"
         ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".xml"
     let $cache-data := doc($cache-collection||"/"||$cache-file-name)/json/text()
-    let $map-from-cache :=
-        if(exists($cache-data))
-        then parse-json($cache-data)
-        else map {}
 
     let $start-caching :=
         if (doc-available($cache-collection||"/"||$cache-file-name||".lock"))
@@ -260,7 +260,7 @@ declare function edwebapi:load-map-from-cache(
                 else if (doc-available($data-collection))
                 then doc($data-collection)/*
                 else error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
-            let $since := $map-from-cache?date-time
+            let $since := parse-json($cache-data)?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
             return
                 if (count($last-modified)=0)
@@ -269,7 +269,10 @@ declare function edwebapi:load-map-from-cache(
         else false()
     return
         if (not($start-caching))
-        then $map-from-cache
+        then
+            if(exists($cache-data))
+            then parse-json($cache-data)
+            else map {}
         else
             let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {current-dateTime()}.</root>)
             let $arity := array:size($params)
