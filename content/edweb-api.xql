@@ -242,13 +242,16 @@ declare function edwebapi:load-map-from-cache(
         ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".xml"
     let $cache-data := doc($cache-collection||"/"||$cache-file-name)/json/text()
 
-    let $start-caching :=
+    let $map-from-cache :=
         if (doc-available($cache-collection||"/"||$cache-file-name||".lock"))
-        then false()
+        then
+            if(exists($cache-data))
+            then parse-json($cache-data)
+            else map {}
         else if ($cache = "reset")
-        then true()
+        then ()
         else if (not(exists($cache-data)))
-        then true()
+        then ()
         else if ($cache = "no")
         then
             let $data-collection := edwebapi:data-collection($app-target)
@@ -260,24 +263,20 @@ declare function edwebapi:load-map-from-cache(
                 else if (doc-available($data-collection))
                 then doc($data-collection)/*
                 else error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
-            let $since := parse-json($cache-data)?date-time
+            let $map-from-cache := parse-json($cache-data)
+            let $since := $map-from-cache?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
             return
                 if (count($last-modified)=0)
-                then false()
-                else true()
-        else false()
+                then $map-from-cache
+                else ()
+        else parse-json($cache-data)
     return
-        if (not($start-caching))
-        then
-            if(exists($cache-data))
-            then parse-json($cache-data)
-            else map {}
+        if (exists($map-from-cache))
+        then $map-from-cache
         else
             let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {current-dateTime()}.</root>)
-            let $arity := array:size($params)
-            let $function := function-lookup($function-qname, $arity)
-            let $map := apply($function, $params)
+            let $map := function-lookup($function-qname, $params => array:size() ) => apply($params)
             let $store := xmldb:store($cache-collection, $cache-file-name, <json>{serialize($map,
                 <output:serialization-parameters><output:method>json</output:method>
                 </output:serialization-parameters>)}</json>)
