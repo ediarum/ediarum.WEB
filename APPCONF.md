@@ -91,7 +91,7 @@ The basic information for an object type defines where to find the objects in th
 - `name` name of the object type. Can be used in the frontend.
 - `collection` a relative path to the collection or to a resource where to search for objects. It mustn't contain an upward pointing path like `/../`.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
-- `item/root` XPath expression of the root element of every object. It only must contain a qualified name, e.g. `tei:TEI`.
+- `item/root` QName expression of the root element of every object. It only must contain a qualified name, e.g. `tei:TEI`.
 - `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as objects.
 - `item/id` XPath expression where to find the ID of an object. This is also used as a ID property (see below).
 - `label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one node as parameter: `function($node) { ... }`.
@@ -408,8 +408,9 @@ The basic information for an relation type defines where to find the relations i
 - `name` Label of the relation type.
 - `collection` a relative path to the collection where to search for relations.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
-- `item/root` XPath expression of the root element of every relation.
+- `item/root` QName of the root element of every relation.
 - `item/id` XPath expression where to find the ID of an object.
+- `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as relations.
 - `label` with `@type` a XPath or XQuery expression to define the label of the relation and is used as predicate in a relation expression. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one string as parameter: `function($string) { ... }`.
 
 ```xml
@@ -418,7 +419,8 @@ The basic information for an relation type defines where to find the relations i
     <collection>/Handschriften</collection>
     <item>
         <namespace id="tei">http://www.tei-c.org/ns/1.0</namespace>
-        <root>tei:term[@key]</root>
+        <root>tei:term</root>
+        <condition>./@key</condition>
         <label type="xquery">
             function ($node as node()) {
             'Enthaltener Begriff'
@@ -441,13 +443,17 @@ The subject and object conditions are used to define how to link a specific subj
 - `subject-condition` a XQuery function which must return true if an entity is equal to the subject of the relation.
   - `subject-condition@type` optional with following values:
     - `id` define a xpath-expression of the relation to compare with the subject ids.
-    - `id-type` define a xpath-expression of the relation to compare with subject id properties.
+    - `id-type` define a xpath-expression of the relation to compare with subject id properties. Requires `@filter` to be set.
     - `resource` defines that the relation node is contained by the same resource as the subject.
+  - `subject-condition@filter` to be used with `id-type` to specify which filter property is used.
 - `object-condition` a XQuery function which must return true if an entity is equal to the object of the relation.
   - `object-condition@type` optional with following values:
     - `id` define a xpath-expression of the relation to compare with the object ids.
-    - `id-type` define a xpath-expression of the relation to compare with object id properties.
+    - `id-type` define a xpath-expression of the relation to compare with object id properties. Requires `@filter` to be set.
     - `resource` defines that the relation node is contained by the same resource as the subject.
+  - `object-condition@filter` to be used with `id-type` to specify which filter property is used.
+
+*Attention:* If possible always some of the above conditions (with `@type`) should be used. Because then the eXist-db indexes are used and performance is better.
 
 Both XQuery functions (if `@type` is omitted) have the form:
 

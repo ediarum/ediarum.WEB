@@ -75,7 +75,7 @@ let $result :=
         then
         edwebapi:load-map-from-cache(
             xs:QName("edwebapi:get-relation-list"),
-            [$app-target, $object-type, $show, $limit],
+            [$app-target, $object-type, $show],
             $app-target,
             $cache
         )

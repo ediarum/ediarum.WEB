@@ -375,7 +375,7 @@ declare function edwebapi:get-object(
                         )
                 for $r in edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-relation-list"),
-                    [$app-target, $rel-type-name, "", ()],
+                    [$app-target, $rel-type-name, ""],
                     $app-target,
                     ""
                 )?list?*
@@ -812,7 +812,7 @@ declare function edwebapi:get-object-list(
                         )
                 for $r in edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-relation-list"),
-                    [$app-target, $rel-type-name, "", ()],
+                    [$app-target, $rel-type-name, ""],
                     $app-target,
                     ""
                 )?list?*
@@ -1174,10 +1174,10 @@ declare function local:get-part-map(
 declare function edwebapi:get-relation-list(
     $app-target as xs:string,
     $relation-type-name as xs:string,
-    $show as xs:string,
-    $limit as xs:string?
+    $show as xs:string
 ) as map(*)
 {
+    let $init-indices := local:init-search-indices($app-target)
     let $cache := ""
     let $config := edwebapi:get-config($app-target)
     let $relation-type := $config//appconf:relation[@xml:id=$relation-type-name]
@@ -1192,8 +1192,6 @@ declare function edwebapi:get-relation-list(
             let $namespace-uri := $ns/string()
             return util:declare-namespace($prefix, $namespace-uri)
 
-    let $label-function := $relation-type/appconf:item/appconf:label[@type=('xquery','xpath')]
-
     let $objects :=
         let $map :=
             edwebapi:load-map-from-cache(
@@ -1202,7 +1200,19 @@ declare function edwebapi:get-relation-list(
                 $app-target,
                 $cache
             )
-        return $map?list?* (: "list-without-filter" :)
+        return
+        map:merge ((
+            if ($relation-type/appconf:object-condition/@type = "resource")
+            then $map?list?* ! map:entry(.?absolute-resource-id, .)
+            else if ($relation-type/appconf:object-condition/@type = "id")
+            then $map?list
+            else if ($relation-type/appconf:object-condition/@type = "id-type")
+            then
+                for $object in $map?list?*
+                return for $filter in $object?filter?($relation-type/appconf:object-condition/@filter)?*
+                return map:entry($filter, $object)
+            else $map?list
+        ))
 
     let $subjects :=
         let $map :=
@@ -1212,12 +1222,24 @@ declare function edwebapi:get-relation-list(
                 $app-target,
                 $cache
             )
-        return $map?list?* (: "list-without-filter" :)
+        return
+        map:merge ((
+            if ($relation-type/appconf:subject-condition/@type = "resource")
+            then $map?list?* ! map:entry(.?absolute-resource-id, .)
+            else if ($relation-type/appconf:subject-condition/@type = "id")
+            then $map?list
+            else if ($relation-type/appconf:subject-condition/@type = "id-type")
+            then
+                for $subject in $map?list?*
+                return for $filter in $subject?filter?($relation-type/appconf:subject-condition/@filter)?*
+                return map:entry($filter, $subject)
+            else $map?list
+        ))
     let $data-collection := edwebapi:data-collection($app-target)
     let $relations :=
         if (xmldb:collection-available($data-collection||$collection))
         then
-            util:eval("collection($data-collection||$collection)//"||$root)
+            util:eval("collection($data-collection||$collection)//"||$root||"[ft:query(.,'relationtype---"||$relation-type-name||":true', map { 'fields': ('"||string-join(($relation-type-name||'---absolute-resource-id',$relation-type-name||'---internal-node-id',$relation-type-name||'---label',$relation-type-name||'---subject',$relation-type-name||'---object'), "','")||"') })]")
         else if (doc-available($data-collection||$collection))
         then
             util:eval("doc($data-collection||$collection)//"||$root)
@@ -1225,114 +1247,82 @@ declare function edwebapi:get-relation-list(
             error(xs:QName("edwebapi:get-objects-002"), "Can't find collection or resource. data-collection: "
             ||$data-collection||", collection/resource: "||$collection)
 
-    let $count := count($relations)
-
-    let $limit :=
-        if ($limit||"" != "")
-        then number($limit)
-        else $edwebapi:object-limit
     let $relations :=
-        for $rel in $relations[position() <= $limit]
+        for $rel in $relations
+        let $subject :=
+            if (exists($relation-type/appconf:subject-condition/@type))
+            then
+                let $key :=
+                    ft:field($rel, $relation-type-name||"---subject")
+                return
+                    if ($show eq 'full')
+                    then $subjects?($key)
+                    else $subjects?($key)?id
+            else ("")
+        let $object :=
+            if (exists($relation-type/appconf:object-condition/@type))
+            then
+                let $key :=
+                    ft:field($rel, $relation-type-name||"---object")
+                return
+                    if ($show eq 'full')
+                    then $objects?($key)
+                    else $objects?($key)?id
+            else ("")
         return
+        if (not(exists($subject)) or not(exists($object)))
+        then ()
+        else
             map:merge((
                 map:entry("xml", $rel),
-                map:entry("internal-node-id", util:node-id($rel)),
-                map:entry("absolute-resource-id", util:absolute-resource-id($rel))
-            ))
-
-
-    let $relations :=
-        if ($relation-type/appconf:subject-condition/@type = "resource")
-        then
-            for $r in $relations
-            let $subj := $subjects[?absolute-resource-id = $r?absolute-resource-id]
-            for $s in $subj
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("subject", $s) ))
-                else map:merge(( $r, map:entry("subject", $s?id) ))
-        else if ($relation-type/appconf:subject-condition/@type = "id")
-        then
-            for $r in $relations
-            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:subject-condition))
-            let $subj := $subjects[?id = $id]
-            for $s in $subj
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("subject", $s) ))
-                else map:merge(( $r, map:entry("subject", $s?id) ))
-        else if ($relation-type/appconf:subject-condition/@type = "id-type")
-        then
-            for $r in $relations
-            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:subject-condition))
-            let $subj := $subjects[?filter?* = $id]
-            for $s in $subj
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("subject", $s) ))
-                else map:merge(( $r, map:entry("subject", $s?id) ))
-        else
-            let $subject-function := util:eval($relation-type/appconf:subject-condition)
-            for $r in $relations
-            for $s in $subjects
-            where $subject-function($r, $s)
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("subject", $s) ))
-                else map:merge(( $r, map:entry("subject", $s?id) ))
-    let $relations :=
-        if ($relation-type/appconf:object-condition/@type = "resource")
-        then
-            for $r in $relations
-            let $obj := $objects[?absolute-resource-id = $r?absolute-resource-id]
-            for $o in $obj
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("object", $o) ))
-                else map:merge(( $r, map:entry("object", $o?id) ))
-        else if ($relation-type/appconf:object-condition/@type = "id")
-        then
-            for $r in $relations
-            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:object-condition))
-            let $obj := $objects[?id = $id]
-            for $o in $obj
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("object", $o) ))
-                else map:merge(( $r, map:entry("object", $o?id) ))
-        else if ($relation-type/appconf:object-condition/@type = "id-type")
-        then
-            for $r in $relations
-            let $id := string(util:eval-inline($r?xml,$relation-type/appconf:object-condition))
-            let $obj := $objects[?filter?* = $id]
-            for $o in $obj
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("object", $o) ))
-                else map:merge(( $r, map:entry("object", $o?id) ))
-        else
-            let $object-function := util:eval($relation-type/appconf:object-condition)
-            for $r in $relations
-            for $o in $objects
-            where $object-function($r, $o)
-            return
-                if ($show eq 'full')
-                then map:merge(( $r, map:entry("object", $o) ))
-                else map:merge(( $r, map:entry("object", $o?id) ))
-    let $relations :=
-        for $r in $relations
-        return
-            map:merge((
-                $r,
+                map:entry("internal-node-id", ft:field($rel, $relation-type-name||"---internal-node-id")),
+                map:entry("absolute-resource-id", ft:field($rel, $relation-type-name||"---absolute-resource-id")),
+                map:entry("subject", $subject),
+                map:entry("object", $object),
                 map:entry(
                     "predicate",
-                    if ($label-function/@type = 'xpath')
-                    then util:eval-inline($r?xml, $label-function)
-                    else if ($label-function/@type = 'xquery')
-                    then util:eval($label-function)($r?xml)
-                    else ()
+                    ft:field($rel, $relation-type-name||"---label")
                 )
             ))
+
+    let $relations :=
+            if (exists($relation-type/appconf:subject-condition/@type))
+            then $relations
+            else
+                let $subject-function := util:eval($relation-type/appconf:subject-condition)
+                for $r in $relations
+                let $subject :=
+                    for $s in $subjects?*
+                    where $subject-function($r, $s)
+                    return $s
+                return
+                    if (not(exists($subject)))
+                    then ()
+                    else
+                        map:put($r, "subject",
+                            if ($show eq 'full')
+                            then $subject
+                            else $subject?id
+                        )
+    let $relations :=
+            if (exists($relation-type/appconf:object-condition/@type))
+            then $relations
+            else
+                let $object-function := util:eval($relation-type/appconf:object-condition)
+                for $r in $relations
+                let $object :=
+                    for $o in $objects?*
+                    where $object-function($r, $o)
+                    return $o
+                return
+                    if (not(exists($object)))
+                    then ()
+                    else
+                        map:put($r, "object",
+                            if ($show eq 'full')
+                            then $object
+                            else $object?id
+                        )
     return
         map:merge((
             map:entry("date-time", current-dateTime()),
@@ -1340,8 +1330,7 @@ declare function edwebapi:get-relation-list(
             map:entry("subject-type", $subject-type),
             map:entry("object-type", $object-type),
             map:entry("name", $name),
-            map:entry("results-found", $count),
-            map:entry("results-shown", if ($count < $limit) then $count else $limit),
+            map:entry("results-found", count($relations)),
             map:entry("list", $relations )
         ))
 };
@@ -1395,7 +1384,7 @@ declare function local:init-search-indices(
 {
     let $config := edwebapi:get-config($app-target)
     let $data-collection := edwebapi:data-collection($app-target)
-    let $collections := ($config//appconf:object/appconf:collection/string())
+    let $collections := distinct-values($config//(appconf:object|appconf:relation)/appconf:collection/string())
     (: let $xconf-root := 'xmldb:exist:///db/system/config' :)
     let $xconf-root := '/db/system/config'
     let $xconf-ns := "http://exist-db.org/collection-config/1.0"
@@ -1409,6 +1398,8 @@ declare function local:init-search-indices(
 
     let $objects := $config//appconf:object[appconf:collection = $collection]
 
+    let $relations := $config//appconf:relation[appconf:collection = $collection]
+
     let $lucene-index :=
         for $obj in $objects[appconf:lucene]
         return $obj/appconf:lucene/functx:change-element-ns-deep(., $xconf-ns, '')
@@ -1417,9 +1408,16 @@ declare function local:init-search-indices(
 
 <collection xmlns="http://exist-db.org/collection-config/1.0">
     <index xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:util="http://exist-db.org/xquery/util" xmlns:tei="http://www.tei-c.org/ns/1.0">
+    {
+        for $namespace in $config//(appconf:object[appconf:collection = $collection]|appconf:relation[appconf:collection = $collection])/appconf:item/appconf:namespace
+        let $prefix := $namespace/@id/string()
+        group by $prefix
+        return
+            namespace {$prefix} {string($namespace[1])}
+    }
         <fulltext default="none" attributes="false"/>
         <lucene>
-        {   for $root in distinct-values($objects/appconf:item/appconf:root)
+        {   for $root in distinct-values(($objects/appconf:item/appconf:root, $relations/appconf:item/appconf:root))
             return
             <text qname="{$root}">
             {
@@ -1492,6 +1490,46 @@ declare function local:init-search-indices(
                         else $filter/appconf:xpath
                     return
                         <field name="{$object-type}---label---{$filter/@xml:id}" expression="{$expression}"/>
+            )}
+            {
+            for $relation-type in $relations[appconf:item/appconf:root = $root]
+            let $relation-type-name := $relation-type/@xml:id/string()
+            return
+            (
+                <field name="relationtype---{$relation-type-name}" expression="{
+                    if ($relation-type/appconf:item/appconf:condition)
+                    then 'not(not('||$relation-type/appconf:item/appconf:condition||'))'
+                    else 'true()'
+                }"/>,
+                <field name="{$relation-type-name}---label" expression="{
+                    if ($relation-type/appconf:item/appconf:label[@type='xpath'])
+                        then
+                            $relation-type/appconf:item/appconf:label[@type='xpath']
+                        else if ($relation-type/appconf:item/appconf:label[@type='xquery'])
+                        then
+                            "let $f := "||$relation-type/appconf:item/appconf:label[@type='xquery']||" return $f(.)"
+                        else ('<no-label-function-defined>')
+                }"/>,
+                <field name="{$relation-type-name}---absolute-resource-id" expression="util:absolute-resource-id(.)"/>,
+                <field name="{$relation-type-name}---internal-node-id" expression="util:node-id(.)"/>,
+                <field name="{$relation-type-name}---subject" expression="{
+                    if ($relation-type/appconf:subject-condition/@type = "resource")
+                    then "util:absolute-resource-id(.)"
+                    else if ($relation-type/appconf:subject-condition/@type = "id")
+                    then $relation-type/appconf:subject-condition
+                    else if ($relation-type/appconf:subject-condition/@type = "id-type")
+                    then $relation-type/appconf:subject-condition
+                    else ()
+                }"/>,
+                <field name="{$relation-type-name}---object" expression="{
+                    if ($relation-type/appconf:object-condition/@type = "resource")
+                    then "util:absolute-resource-id(.)"
+                    else if ($relation-type/appconf:object-condition/@type = "id")
+                    then $relation-type/appconf:object-condition
+                    else if ($relation-type/appconf:object-condition/@type = "id-type")
+                    then $relation-type/appconf:object-condition
+                    else ()
+                }"/>
             )}
             </text>
         }
