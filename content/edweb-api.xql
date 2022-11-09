@@ -247,7 +247,7 @@ declare function edwebapi:load-map-from-cache(
         then
             if(exists($cache-data))
             then parse-json($cache-data)
-            else map {}
+            else error(xs:QName("edwebapi:load-map-from-cache"), "Cache for '"||$cache-file-name||"' can't be accessed: "||doc($cache-collection||"/"||$cache-file-name||".lock")/string())
         else if ($cache = "reset")
         then ()
         else if (not(exists($cache-data)))
