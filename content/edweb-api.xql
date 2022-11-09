@@ -239,18 +239,18 @@ declare function edwebapi:load-map-from-cache(
         then $app-target||"/"||$edwebapi:cache-collection
         else xmldb:create-collection($app-target, $edwebapi:cache-collection)
     let $cache-file-name := local-name-from-QName($function-qname)||"-"
-        ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".xml"
-    let $cache-data := doc($cache-collection||"/"||$cache-file-name)/json/text()
+        ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".json"
+    (: let $cache-data := json-doc($cache-collection||"/"||$cache-file-name) :)
 
     let $map-from-cache :=
         if (doc-available($cache-collection||"/"||$cache-file-name||".lock"))
         then
-            if(exists($cache-data))
-            then parse-json($cache-data)
+            if(util:binary-doc-available($cache-collection||"/"||$cache-file-name))
+            then json-doc($cache-collection||"/"||$cache-file-name)
             else error(xs:QName("edwebapi:load-map-from-cache"), "Cache for '"||$cache-file-name||"' can't be accessed: "||doc($cache-collection||"/"||$cache-file-name||".lock")/string())
         else if ($cache = "reset")
         then ()
-        else if (not(exists($cache-data)))
+        else if (not(util:binary-doc-available($cache-collection||"/"||$cache-file-name)))
         then ()
         else if ($cache = "no")
         then
@@ -263,25 +263,25 @@ declare function edwebapi:load-map-from-cache(
                 else if (doc-available($data-collection))
                 then doc($data-collection)/*
                 else error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
-            let $map-from-cache := parse-json($cache-data)
+            let $map-from-cache := json-doc($cache-collection||"/"||$cache-file-name)
             let $since := $map-from-cache?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
             return
                 if (count($last-modified)=0)
                 then $map-from-cache
                 else ()
-        else parse-json($cache-data)
+        else json-doc($cache-collection||"/"||$cache-file-name)
     return
         if (exists($map-from-cache))
         then $map-from-cache
         else
             let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {current-dateTime()}.</root>)
             let $map := function-lookup($function-qname, $params => array:size() ) => apply($params)
-            let $store := xmldb:store($cache-collection, $cache-file-name, <json>{serialize($map,
+            let $store := xmldb:store($cache-collection, $cache-file-name, serialize($map,
                 <output:serialization-parameters><output:method>json</output:method>
-                </output:serialization-parameters>)}</json>)
+                </output:serialization-parameters>))
             let $remove-lock-for-cache-file := xmldb:remove($cache-collection, $cache-file-name||".lock")
-            return doc($cache-collection||"/"||$cache-file-name)/json/text() => parse-json()
+            return json-doc($cache-collection||"/"||$cache-file-name)
 };
 
 (:~
