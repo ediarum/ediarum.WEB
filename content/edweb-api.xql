@@ -17,6 +17,8 @@ declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace tei="http://www.tei-c.org/ns/1.0";
 declare namespace test="http://exist-db.org/xquery/xqsuite";
 declare namespace repo="http://exist-db.org/xquery/repo";
+declare namespace util="http://exist-db.org/xquery/util";
+declare namespace xmldb="http://exist-db.org/xquery/xmldb";
 
 declare variable $edwebapi:controller := "/ediarum.web";
 declare variable $edwebapi:projects-collection := "/db/projects";
@@ -25,25 +27,21 @@ declare variable $edwebapi:param-separator := ";";
 declare variable $edwebapi:object-limit := 10000;
 declare variable $edwebapi:cache-collection := "cache";
 
-declare function edwebapi:load-map-from-cache(
-    $function-qname as xs:QName,
-    $params as array(*),
-    $app-target as xs:string?,
-    $cache as xs:string?
-) as map(*)
+declare function edwebapi:map-from-cache(
+    $app-target as xs:string,
+    $cache-file-name as xs:string,
+    $cache as xs:string
+)
 {
+
     if ($cache = "off")
-    then
-        function-lookup($function-qname, $params => array:size() ) => apply($params)
+    then ()
     else
     let $cache-collection :=
         if (xmldb:collection-available($app-target||"/"||$edwebapi:cache-collection))
         then $app-target||"/"||$edwebapi:cache-collection
         else xmldb:create-collection($app-target, $edwebapi:cache-collection)
-    let $cache-file-name := local-name-from-QName($function-qname)||"-"
-        ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".json"
-
-    let $map-from-cache :=
+    return
         if (doc-available($cache-collection||"/"||$cache-file-name||".lock"))
         then
             if(util:binary-doc-available($cache-collection||"/"||$cache-file-name))
@@ -72,18 +70,52 @@ declare function edwebapi:load-map-from-cache(
                 then $map-from-cache
                 else ()
         else json-doc($cache-collection||"/"||$cache-file-name)
+};
+
+declare function edwebapi:get-cache-file-name(
+    $function-qname as xs:QName,
+    $params as array(*)
+)
+{
+    local-name-from-QName($function-qname)||"-"
+        ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".json"
+};
+
+declare function edwebapi:save-to-cache(
+    $app-target as xs:string,
+    $cache-file-name as xs:string,
+    $map as map(*),
+    $cache as xs:string
+)
+{
+    if ($cache = "off")
+    then ()
+    else
+    let $cache-collection :=
+        if (xmldb:collection-available($app-target||"/"||$edwebapi:cache-collection))
+        then $app-target||"/"||$edwebapi:cache-collection
+        else xmldb:create-collection($app-target, $edwebapi:cache-collection)
+    let $serialization := serialize($map, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters>)
     return
-        if (exists($map-from-cache))
-        then $map-from-cache
+        xmldb:store($cache-collection, $cache-file-name, $serialization)
+};
+
+declare function edwebapi:load-map-from-cache(
+    $function-qname as xs:QName,
+    $params as array(*),
+    $app-target as xs:string?,
+    $cache as xs:string?
+) as map(*)
+{
+    let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+    let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+    return
+        if (exists($cache-map))
+        then $cache-map
         else
-            (: let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}.</root>) :)
             let $map := function-lookup($function-qname, $params => array:size() ) => apply($params)
-            (: let $touch-file := xmldb:store($cache-collection, $cache-file-name, serialize(map {"error": "##"||count(map:keys($map))}, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters> )) :)
-            let $serialization := serialize($map, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters>)
-            (: let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}. Map successful generated.</root>) :)
-            let $store := xmldb:store($cache-collection, $cache-file-name, $serialization)
-            (: let $remove-lock-for-cache-file := xmldb:remove($cache-collection, $cache-file-name||".lock") :)
-            return json-doc($cache-collection||"/"||$cache-file-name)
+            let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+            return $map
 };
 
 (:~
