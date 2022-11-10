@@ -25,29 +25,40 @@ return
     if ($id-type = "all")
     then
         let $all-list :=
-            edwebapi:load-map-from-cache(
+            (: edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-all"),
                 [$app-target, false()],
                 $app-target,
                 $cache
-            )
+            ) :)
+            let $function-qname := xs:QName("edwebapi:get-all")
+            let $params := [$app-target, false()]
+            let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+            let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+            return if (exists($cache-map)) then $cache-map else
+            let $map := edwebapi:get-all($app-target, false())
+            let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+            return $map
         return $all-list
-    else if ($id-type = "complete")
-    then
-        let $all-list :=
-            edwebapi:load-map-from-cache(
-                xs:QName("edwebapi:get-all"),
-                [$app-target, true()],
-                $app-target,
-                $cache
-            )
-        return map:remove($all-list, "date-time")
     else
-        let $all-list :=
-            edwebapi:load-map-from-cache(
-                xs:QName("edwebapi:get-all"),
-                [$app-target, true()],
-                $app-target,
-                $cache
-            )
-        return map:remove($all-list, "date-time")?*[?filter?($id-type)||"" != ""]
+    let $all-list :=
+        (: edwebapi:load-map-from-cache(
+            xs:QName("edwebapi:get-all"),
+            [$app-target, true()],
+            $app-target,
+            $cache
+        ) :)
+        let $function-qname := xs:QName("edwebapi:get-all")
+        let $params := [$app-target, true()]
+        let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+        let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+        return if (exists($cache-map)) then $cache-map else
+        let $map := edwebapi:get-all($app-target, true())
+        let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+        return $map
+    return
+    if ($id-type = "complete")
+    then
+        map:remove($all-list, "date-time")
+    else
+        map:remove($all-list, "date-time")?*[?filter?($id-type)||"" != ""]

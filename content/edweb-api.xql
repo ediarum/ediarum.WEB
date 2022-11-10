@@ -396,12 +396,23 @@ declare function edwebapi:get-object(
                         error(xs:QName("edwebapi:get-object-list-002"),
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
-                for $r in edwebapi:load-map-from-cache(
+                (: for $r in edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, ""],
                     $app-target,
                     ""
-                )?list?*
+                )?list?* :)
+                let $relation-list :=
+                    let $function-qname := xs:QName("edwebapi:get-relation-list")
+                    let $params := [$app-target, $rel-type-name, ""]
+                    let $cache := ""
+                    let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+                    let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+                    return if (exists($cache-map)) then $cache-map else
+                    let $map := edwebapi:get-relation-list($app-target, $rel-type-name, "")
+                    let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+                    return $map
+                for $r in $relation-list?list?*
                 return map:entry(
                     $r?($rel-perspective),
                     switch($f/appconf:label/string())
@@ -833,12 +844,23 @@ declare function edwebapi:get-object-list(
                         error(xs:QName("edwebapi:get-object-list-002"),
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
-                for $r in edwebapi:load-map-from-cache(
+                (: for $r in edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, ""],
                     $app-target,
                     ""
-                )?list?*
+                )?list?* :)
+                let $relation-list :=
+                    let $function-qname := xs:QName("edwebapi:get-relation-list")
+                    let $params := [$app-target, $rel-type-name, ""]
+                    let $cache := ""
+                    let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+                    let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+                    return if (exists($cache-map)) then $cache-map else
+                    let $map := edwebapi:get-relation-list($app-target, $rel-type-name, "")
+                    let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+                    return $map
+                for $r in $relation-list?list?*
                 return map:entry(
                     $r?($rel-perspective),
                     switch($f/appconf:label/string())
@@ -1056,12 +1078,20 @@ declare function edwebapi:get-search-results(
 
         (: Get object list with search :)
         let $object-list := 
-           edwebapi:load-map-from-cache(
+           (: edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $object-type, $true()],
                 $app-target,
                 $cache
-            )
+            ) :)
+            let $function-qname := xs:QName("edwebapi:get-object-list")
+            let $params := [$app-target, $object-type, $true()]
+            let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+            let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+            return if (exists($cache-map)) then $cache-map else
+            let $map := edwebapi:get-object-list($app-target, $object-type, $true())
+            let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+            return $map
         return 
             edwebapi:get-object-list-with-search(
                 $object-list, 
@@ -1201,7 +1231,7 @@ declare function edwebapi:get-relation-list(
     $show as xs:string
 ) as map(*)
 {
-    let $cache := "off"
+    let $cache := ""
     let $config := edwebapi:get-config($app-target)
     let $relation-type := $config//appconf:relation[@xml:id=$relation-type-name]
     let $subject-type := $relation-type/@subject/string()
@@ -1217,12 +1247,20 @@ declare function edwebapi:get-relation-list(
 
     let $objects :=
         let $map :=
-            edwebapi:load-map-from-cache(
+            (: edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $object-type, false()],
                 $app-target,
                 $cache
-            )
+            ) :)
+            let $function-qname := xs:QName("edwebapi:get-object-list")
+            let $params := [$app-target, $object-type, false()]
+            let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+            let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+            return if (exists($cache-map)) then $cache-map else
+            let $map := edwebapi:get-object-list($app-target, $object-type, false())
+            let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+            return $map
         return
         map:merge ((
             if ($relation-type/appconf:object-condition/@type = "resource")
@@ -1239,12 +1277,20 @@ declare function edwebapi:get-relation-list(
 
     let $subjects :=
         let $map :=
-            edwebapi:load-map-from-cache(
+            (: edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $subject-type, false()],
                 $app-target,
                 $cache
-            )
+            ) :)
+            let $function-qname := xs:QName("edwebapi:get-object-list")
+            let $params := [$app-target, $subject-type, false()]
+            let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+            let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+            return if (exists($cache-map)) then $cache-map else
+            let $map := edwebapi:get-object-list($app-target, $subject-type, false())
+            let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+            return $map
         return
         map:merge ((
             if ($relation-type/appconf:subject-condition/@type = "resource")

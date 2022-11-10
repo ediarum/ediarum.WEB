@@ -55,30 +55,54 @@ let $is-relation := exists($config//appconf:relation[@xml:id=$object-type])
 let $result := 
     if ($is-object and $show eq 'compact')
     then 
-        edwebapi:load-map-from-cache(
+        (: edwebapi:load-map-from-cache(
             xs:QName("edwebapi:get-object-list"),
             [$app-target, $object-type, false()], 
             $app-target,
             $cache
-        )
+        ) :)
+        let $function-qname := xs:QName("edwebapi:get-object-list")
+        let $params := [$app-target, $object-type, false()]
+        let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+        let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+        return if (exists($cache-map)) then $cache-map else
+        let $map := edwebapi:get-object-list($app-target, $object-type, false())
+        let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+        return $map
     else if ($is-object) 
     then
-        edwebapi:load-map-from-cache(
+        (: edwebapi:load-map-from-cache(
             xs:QName("edwebapi:get-object-list"),
             [$app-target, $object-type, true()],
             $app-target, 
             $cache
-        )
+        ) :)
+        let $function-qname := xs:QName("edwebapi:get-object-list")
+        let $params := [$app-target, $object-type, true()]
+        let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+        let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+        return if (exists($cache-map)) then $cache-map else
+        let $map := edwebapi:get-object-list($app-target, $object-type, true())
+        let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+        return $map
     else if ($is-relation)
     then
         if ($show = ("", "list", "full"))
         then
-        edwebapi:load-map-from-cache(
+        (: edwebapi:load-map-from-cache(
             xs:QName("edwebapi:get-relation-list"),
             [$app-target, $object-type, $show],
             $app-target,
             $cache
-        )
+        ) :)
+        let $function-qname := xs:QName("edwebapi:get-relation-list")
+        let $params := [$app-target, $object-type, $show]
+        let $cache-file-name := edwebapi:get-cache-file-name($function-qname, $params)
+        let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
+        return if (exists($cache-map)) then $cache-map else
+        let $map := edwebapi:get-relation-list($app-target, $object-type, $show)
+        let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
+        return $map
         else "Parameter 'show' must be one of 'list', 'full' or ''."
     else $object-type||" isn't defined for '"||$app-target||"'."
 return
