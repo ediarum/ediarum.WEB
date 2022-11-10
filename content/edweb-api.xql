@@ -30,7 +30,7 @@ declare variable $edwebapi:cache-collection := "cache";
 declare function edwebapi:map-from-cache(
     $app-target as xs:string,
     $cache-file-name as xs:string,
-    $cache as xs:string
+    $cache as xs:string?
 )
 {
 
@@ -85,7 +85,7 @@ declare function edwebapi:save-to-cache(
     $app-target as xs:string,
     $cache-file-name as xs:string,
     $map as map(*),
-    $cache as xs:string
+    $cache as xs:string?
 )
 {
     if ($cache = "off")
@@ -162,7 +162,7 @@ declare function edwebapi:filter-list(
 declare function edwebapi:get-all(
     $app-target as xs:string,
     $with-filters as xs:boolean,
-    $cache as xs:string
+    $cache as xs:string?
 ) as map(*)
 {
     let $cache-file-name := translate("get-all-"||$with-filters||".json", '/','__')
@@ -386,7 +386,7 @@ declare function edwebapi:get-object(
                         error(xs:QName("edwebapi:get-object-list-002"),
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
-                for $r in edwebapi:get-relation-list($app-target, $rel-type-name, "", $cache)?list?*
+                for $r in edwebapi:get-relation-list($app-target, $rel-type-name, false(), $cache)?list?*
                 return map:entry(
                     $r?($rel-perspective),
                     switch($f/appconf:label/string())
@@ -750,7 +750,7 @@ declare function edwebapi:get-object-list(
     $app-target as xs:string,
     $object-type as xs:string,
     $with-filters as xs:boolean,
-    $cache as xs:string
+    $cache as xs:string?
 ) as map(*) 
 {
     let $cache-file-name := translate("get-object-list-"||$object-type||"-"||$with-filters||".json", '/','__')
@@ -823,7 +823,7 @@ declare function edwebapi:get-object-list(
                         error(xs:QName("edwebapi:get-object-list-002"),
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
-                for $r in edwebapi:get-relation-list($app-target, $rel-type-name, "", $cache)?list?*
+                for $r in edwebapi:get-relation-list($app-target, $rel-type-name, false(), $cache)?list?*
                 return map:entry(
                     $r?($rel-perspective),
                     switch($f/appconf:label/string())
@@ -1180,11 +1180,11 @@ declare function local:get-part-map(
 declare function edwebapi:get-relation-list(
     $app-target as xs:string,
     $relation-type-name as xs:string,
-    $show as xs:string,
-    $cache as xs:string
+    $show-full as xs:boolean,
+    $cache as xs:string?
 ) as map(*)
 {
-    let $cache-file-name := translate("get-relation-list-"||$relation-type-name||"-"||$show||".json", '/','__')
+    let $cache-file-name := translate("get-relation-list-"||$relation-type-name||"-"||$show-full||".json", '/','__')
     let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
     return if (exists($cache-map)) then $cache-map else
 
@@ -1253,7 +1253,7 @@ declare function edwebapi:get-relation-list(
             then
                 let $key := ft:field($rel, $relation-type-name||"---subject")
                 return
-                    if ($show eq 'full')
+                    if ($show-full)
                     then $subjects?($key)
                     else $subjects?($key)?id
             else ("")
@@ -1263,7 +1263,7 @@ declare function edwebapi:get-relation-list(
                 let $key :=
                     ft:field($rel, $relation-type-name||"---object")
                 return
-                    if ($show eq 'full')
+                    if ($show-full)
                     then $objects?($key)
                     else $objects?($key)?id
             else ("")
@@ -1296,7 +1296,7 @@ declare function edwebapi:get-relation-list(
                     then ()
                     else
                         map:put($r, "subject",
-                            if ($show eq 'full')
+                            if ($show-full)
                             then $subject
                             else $subject?id
                         )
@@ -1315,7 +1315,7 @@ declare function edwebapi:get-relation-list(
                     then ()
                     else
                         map:put($r, "object",
-                            if ($show eq 'full')
+                            if ($show-full)
                             then $object
                             else $object?id
                         )

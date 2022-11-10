@@ -60,7 +60,7 @@ let $result :=
     else if ($is-relation)
     then
         if ($show = ("", "list", "full"))
-        then edwebapi:get-relation-list($app-target, $object-type, $show, $cache)
+        then edwebapi:get-relation-list($app-target, $object-type, $show eq "full", $cache)
         else "Parameter 'show' must be one of 'list', 'full' or ''."
     else $object-type||" isn't defined for '"||$app-target||"'."
 return
