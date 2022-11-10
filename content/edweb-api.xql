@@ -978,7 +978,8 @@ declare function edwebapi:get-objects(
     return
     if (xmldb:collection-available($data-collection||$collection))
     then
-        util:eval("collection($data-collection||$collection)//"||$root||"[ft:query(.,(), map { 'facets': map { 'objecttype---"||$object-type||"': 'true'},'fields': ('"||string-join(($object-type||'---id',$object-type||'---absolute-resource-id',$object-type||'---label', for $f in $filters return $object-type||"---"||$f, for $f in $object-def/appconf:filters/appconf:filter[./appconf:root[@type = 'label']]/@xml:id/string() return $object-type||"---label---"||$f), "','")||"') })]")
+        util:eval("collection($data-collection||$collection)//"||$root||
+        "[ft:query(.,'objecttype---"||$object-type||":true', map { 'fields': ('"||string-join(($object-type||'---id',$object-type||'---absolute-resource-id',$object-type||'---label', for $f in $filters return $object-type||"---"||$f, for $f in $object-def/appconf:filters/appconf:filter[./appconf:root[@type = 'label']]/@xml:id/string() return $object-type||"---label---"||$f), "','")||"') })]")
     else if (doc-available($data-collection||$collection))
     then
         util:eval("doc($data-collection||$collection)//"||$root||"[ft:query(.,(), map { 'fields': ('"||string-join(('id','absolute-resource-id','label', $filters), "','")||"') })]")
@@ -1414,7 +1415,7 @@ declare function local:init-search-indices(
             let $object-type := $object-def/@xml:id/string()
             return
             (
-                <facet dimension="objecttype---{$object-type}" expression="{
+                <field name="objecttype---{$object-type}" expression="{
                     if ($object-def/appconf:item/appconf:condition)
                     then 'not(not('||$object-def/appconf:item/appconf:condition||'))'
                     else 'true()'
