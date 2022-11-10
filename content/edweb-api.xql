@@ -7,7 +7,6 @@ module namespace edwebapi="http://www.bbaw.de/telota/software/ediarum/web/api";
 
 
 import module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
-import module namespace edwebcache="http://www.bbaw.de/telota/software/ediarum/web/cache";
 import module namespace kwic="http://exist-db.org/xquery/kwic";
 import module namespace functx = "http://www.functx.com";
 
@@ -24,6 +23,7 @@ declare variable $edwebapi:projects-collection := "/db/projects";
 (: See also $edweb:param-separator. :)
 declare variable $edwebapi:param-separator := ";";
 declare variable $edwebapi:object-limit := 10000;
+declare variable $edwebapi:cache-collection := "cache";
 
 declare function edwebapi:load-map-from-cache(
     $function-qname as xs:QName,
@@ -37,9 +37,9 @@ declare function edwebapi:load-map-from-cache(
         function-lookup($function-qname, $params => array:size() ) => apply($params)
     else
     let $cache-collection :=
-        if (xmldb:collection-available($app-target||"/"||$edwebcache:cache-collection))
-        then $app-target||"/"||$edwebcache:cache-collection
-        else xmldb:create-collection($app-target, $edwebcache:cache-collection)
+        if (xmldb:collection-available($app-target||"/"||$edwebapi:cache-collection))
+        then $app-target||"/"||$edwebapi:cache-collection
+        else xmldb:create-collection($app-target, $edwebapi:cache-collection)
     let $cache-file-name := local-name-from-QName($function-qname)||"-"
         ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".json"
 
@@ -48,14 +48,14 @@ declare function edwebapi:load-map-from-cache(
         then
             if(util:binary-doc-available($cache-collection||"/"||$cache-file-name))
             then json-doc($cache-collection||"/"||$cache-file-name)
-            else error(xs:QName("edwebcache:load-map-from-cache"), "Cache for '"||$cache-file-name||"' can't be accessed: "||doc($cache-collection||"/"||$cache-file-name||".lock")/string())
+            else error(xs:QName("edwebapi:load-map-from-cache"), "Cache for '"||$cache-file-name||"' can't be accessed: "||doc($cache-collection||"/"||$cache-file-name||".lock")/string())
         else if ($cache = "reset")
         then ()
         else if (not(util:binary-doc-available($cache-collection||"/"||$cache-file-name)))
         then ()
         else if ($cache = "no")
         then
-            let $data-collection := edwebcache:data-collection($app-target)
+            let $data-collection := edwebapi:data-collection($app-target)
             let $node-set as node()* :=
                 if ($data-collection||"" = "")
                 then ()
@@ -63,7 +63,7 @@ declare function edwebapi:load-map-from-cache(
                 then collection($data-collection) (: /* :)
                 else if (doc-available($data-collection))
                 then doc($data-collection)/*
-                else error(xs:QName("edwebcache:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
+                else error(xs:QName("edwebapi:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
             let $map-from-cache := json-doc($cache-collection||"/"||$cache-file-name)
             let $since := $map-from-cache?date-time
             let $last-modified := xmldb:find-last-modified-since($node-set, $since)
@@ -76,13 +76,13 @@ declare function edwebapi:load-map-from-cache(
         if (exists($map-from-cache))
         then $map-from-cache
         else
-            let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}.</root>)
+            (: let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}.</root>) :)
             let $map := function-lookup($function-qname, $params => array:size() ) => apply($params)
-            let $touch-file := xmldb:store($cache-collection, $cache-file-name, serialize(map {"error": "##"||count(map:keys($map))}, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters> ))
+            (: let $touch-file := xmldb:store($cache-collection, $cache-file-name, serialize(map {"error": "##"||count(map:keys($map))}, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters> )) :)
             let $serialization := serialize($map, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters>)
-            let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}. Map successful generated.</root>)
+            (: let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}. Map successful generated.</root>) :)
             let $store := xmldb:store($cache-collection, $cache-file-name, $serialization)
-            let $remove-lock-for-cache-file := xmldb:remove($cache-collection, $cache-file-name||".lock")
+            (: let $remove-lock-for-cache-file := xmldb:remove($cache-collection, $cache-file-name||".lock") :)
             return json-doc($cache-collection||"/"||$cache-file-name)
 };
 
@@ -364,7 +364,7 @@ declare function edwebapi:get-object(
                         error(xs:QName("edwebapi:get-object-list-002"),
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
-                for $r in edwebcache:load-map-from-cache(
+                for $r in edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, ""],
                     $app-target,
@@ -801,7 +801,7 @@ declare function edwebapi:get-object-list(
                         error(xs:QName("edwebapi:get-object-list-002"),
                             "Invalid configuration parameter value, only 'subject' or 'object' allowed."
                         )
-                for $r in edwebcache:load-map-from-cache(
+                for $r in edwebapi:load-map-from-cache(
                     xs:QName("edwebapi:get-relation-list"),
                     [$app-target, $rel-type-name, ""],
                     $app-target,
@@ -1023,7 +1023,7 @@ declare function edwebapi:get-search-results(
 
         (: Get object list with search :)
         let $object-list := 
-           edwebcache:load-map-from-cache(
+           edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $object-type, $true()],
                 $app-target,
