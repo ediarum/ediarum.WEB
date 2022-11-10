@@ -25,6 +25,67 @@ declare variable $edwebapi:projects-collection := "/db/projects";
 declare variable $edwebapi:param-separator := ";";
 declare variable $edwebapi:object-limit := 10000;
 
+declare function edwebapi:load-map-from-cache(
+    $function-qname as xs:QName,
+    $params as array(*),
+    $app-target as xs:string?,
+    $cache as xs:string?
+) as map(*)
+{
+    if ($cache = "off")
+    then
+        function-lookup($function-qname, $params => array:size() ) => apply($params)
+    else
+    let $cache-collection :=
+        if (xmldb:collection-available($app-target||"/"||$edwebcache:cache-collection))
+        then $app-target||"/"||$edwebcache:cache-collection
+        else xmldb:create-collection($app-target, $edwebcache:cache-collection)
+    let $cache-file-name := local-name-from-QName($function-qname)||"-"
+        ||translate(string-join($params?*[position()!=1], "-"),'/','__')||".json"
+
+    let $map-from-cache :=
+        if (doc-available($cache-collection||"/"||$cache-file-name||".lock"))
+        then
+            if(util:binary-doc-available($cache-collection||"/"||$cache-file-name))
+            then json-doc($cache-collection||"/"||$cache-file-name)
+            else error(xs:QName("edwebcache:load-map-from-cache"), "Cache for '"||$cache-file-name||"' can't be accessed: "||doc($cache-collection||"/"||$cache-file-name||".lock")/string())
+        else if ($cache = "reset")
+        then ()
+        else if (not(util:binary-doc-available($cache-collection||"/"||$cache-file-name)))
+        then ()
+        else if ($cache = "no")
+        then
+            let $data-collection := edwebcache:data-collection($app-target)
+            let $node-set as node()* :=
+                if ($data-collection||"" = "")
+                then ()
+                else if (xmldb:collection-available($data-collection))
+                then collection($data-collection) (: /* :)
+                else if (doc-available($data-collection))
+                then doc($data-collection)/*
+                else error(xs:QName("edwebcache:load-map-from-cache"), "Can't find collection or resource. data-collection: "||$data-collection)
+            let $map-from-cache := json-doc($cache-collection||"/"||$cache-file-name)
+            let $since := $map-from-cache?date-time
+            let $last-modified := xmldb:find-last-modified-since($node-set, $since)
+            return
+                if (count($last-modified)=0)
+                then $map-from-cache
+                else ()
+        else json-doc($cache-collection||"/"||$cache-file-name)
+    return
+        if (exists($map-from-cache))
+        then $map-from-cache
+        else
+            let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}.</root>)
+            let $map := function-lookup($function-qname, $params => array:size() ) => apply($params)
+            let $touch-file := xmldb:store($cache-collection, $cache-file-name, serialize(map {"error": "##"||count(map:keys($map))}, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters> ))
+            let $serialization := serialize($map, <output:serialization-parameters><output:method>json</output:method><output:media-type>application/json</output:media-type></output:serialization-parameters>)
+            let $set-lock-for-cache-file := xmldb:store($cache-collection,$cache-file-name||".lock", <root>Locked since {util:system-dateTime()}. Map successful generated.</root>)
+            let $store := xmldb:store($cache-collection, $cache-file-name, $serialization)
+            let $remove-lock-for-cache-file := xmldb:remove($cache-collection, $cache-file-name||".lock")
+            return json-doc($cache-collection||"/"||$cache-file-name)
+};
+
 (:~
  : 
  :)
@@ -1107,8 +1168,7 @@ declare function edwebapi:get-relation-list(
     $show as xs:string
 ) as map(*)
 {
-    let $init-indices := local:init-search-indices($app-target)
-    let $cache := ""
+    let $cache := "off"
     let $config := edwebapi:get-config($app-target)
     let $relation-type := $config//appconf:relation[@xml:id=$relation-type-name]
     let $subject-type := $relation-type/@subject/string()
@@ -1124,7 +1184,7 @@ declare function edwebapi:get-relation-list(
 
     let $objects :=
         let $map :=
-            edwebcache:load-map-from-cache(
+            edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $object-type, false()],
                 $app-target,
@@ -1146,7 +1206,7 @@ declare function edwebapi:get-relation-list(
 
     let $subjects :=
         let $map :=
-            edwebcache:load-map-from-cache(
+            edwebapi:load-map-from-cache(
                 xs:QName("edwebapi:get-object-list"),
                 [$app-target, $subject-type, false()],
                 $app-target,
@@ -1169,7 +1229,9 @@ declare function edwebapi:get-relation-list(
     let $relations :=
         if (xmldb:collection-available($data-collection||$collection))
         then
-            util:eval("collection($data-collection||$collection)//"||$root||"[ft:query(.,'relationtype---"||$relation-type-name||":true', map { 'fields': ('"||string-join(($relation-type-name||'---absolute-resource-id',$relation-type-name||'---internal-node-id',$relation-type-name||'---label',$relation-type-name||'---subject',$relation-type-name||'---object'), "','")||"') })]")
+            util:eval("collection($data-collection||$collection)//"||$root
+            ||"[ft:query(.,'relationtype---"||$relation-type-name||":true', map { 'fields': ('"||$relation-type-name||"---absolute-resource-id','"||$relation-type-name||"---internal-node-id','"||$relation-type-name||"---object','"||$relation-type-name||"---subject','"||$relation-type-name||"---label') })]"
+            )
         else if (doc-available($data-collection||$collection))
         then
             util:eval("doc($data-collection||$collection)//"||$root)
@@ -1182,8 +1244,7 @@ declare function edwebapi:get-relation-list(
         let $subject :=
             if (exists($relation-type/appconf:subject-condition/@type))
             then
-                let $key :=
-                    ft:field($rel, $relation-type-name||"---subject")
+                let $key := ft:field($rel, $relation-type-name||"---subject")
                 return
                     if ($show eq 'full')
                     then $subjects?($key)
@@ -1199,8 +1260,9 @@ declare function edwebapi:get-relation-list(
                     then $objects?($key)
                     else $objects?($key)?id
             else ("")
+        let $predicate := ft:field($rel, $relation-type-name||"---label")
         return
-        if (not(exists($subject)) or not(exists($object)))
+        if (not(exists($subject)) or not(exists($object)) or not(exists($predicate)))
         then ()
         else
             map:merge((
@@ -1209,10 +1271,7 @@ declare function edwebapi:get-relation-list(
                 map:entry("absolute-resource-id", ft:field($rel, $relation-type-name||"---absolute-resource-id")),
                 map:entry("subject", $subject),
                 map:entry("object", $object),
-                map:entry(
-                    "predicate",
-                    ft:field($rel, $relation-type-name||"---label")
-                )
+                map:entry( "predicate", $predicate)
             ))
 
     let $relations :=
