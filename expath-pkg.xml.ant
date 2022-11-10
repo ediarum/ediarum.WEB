@@ -14,4 +14,8 @@
       <namespace>http://www.bbaw.de/telota/software/ediarum/web/controller</namespace>
       <file>edweb-controller.xql</file>
     </xquery>
+    <xquery>
+      <namespace>http://www.bbaw.de/telota/software/ediarum/web/cache</namespace>
+      <file>edweb-cache.xql</file>
+    </xquery>
 </package>
