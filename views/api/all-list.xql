@@ -1,6 +1,7 @@
 xquery version "3.1";
 
 import module namespace edwebapi="http://www.bbaw.de/telota/software/ediarum/web/api";
+import module namespace edwebcache="http://www.bbaw.de/telota/software/ediarum/web/cache";
 import module namespace request="http://exist-db.org/xquery/request";
 import module namespace map="http://www.w3.org/2005/xpath-functions/map";
 
@@ -25,7 +26,7 @@ return
     if ($id-type = "all")
     then
         let $all-list :=
-            edwebapi:load-map-from-cache(
+            edwebcache:load-map-from-cache(
                 xs:QName("edwebapi:get-all"),
                 [$app-target, false()],
                 $app-target,
@@ -35,7 +36,7 @@ return
     else if ($id-type = "complete")
     then
         let $all-list :=
-            edwebapi:load-map-from-cache(
+            edwebcache:load-map-from-cache(
                 xs:QName("edwebapi:get-all"),
                 [$app-target, true()],
                 $app-target,
@@ -44,7 +45,7 @@ return
         return map:remove($all-list, "date-time")
     else
         let $all-list :=
-            edwebapi:load-map-from-cache(
+            edwebcache:load-map-from-cache(
                 xs:QName("edwebapi:get-all"),
                 [$app-target, true()],
                 $app-target,

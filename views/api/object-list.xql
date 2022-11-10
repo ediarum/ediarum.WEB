@@ -1,6 +1,7 @@
 xquery version "3.1";
 
 import module namespace edwebapi="http://www.bbaw.de/telota/software/ediarum/web/api";
+import module namespace edwebcache="http://www.bbaw.de/telota/software/ediarum/web/cache";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
 declare namespace output = "http://www.w3.org/2010/xslt-xquery-serialization";
@@ -55,7 +56,7 @@ let $is-relation := exists($config//appconf:relation[@xml:id=$object-type])
 let $result := 
     if ($is-object and $show eq 'compact')
     then 
-        edwebapi:load-map-from-cache(
+        edwebcache:load-map-from-cache(
             xs:QName("edwebapi:get-object-list"),
             [$app-target, $object-type, false()], 
             $app-target,
@@ -63,7 +64,7 @@ let $result :=
         )
     else if ($is-object) 
     then
-        edwebapi:load-map-from-cache(
+        edwebcache:load-map-from-cache(
             xs:QName("edwebapi:get-object-list"),
             [$app-target, $object-type, true()],
             $app-target, 
@@ -73,7 +74,7 @@ let $result :=
     then
         if ($show = ("", "list", "full"))
         then
-        edwebapi:load-map-from-cache(
+        edwebcache:load-map-from-cache(
             xs:QName("edwebapi:get-relation-list"),
             [$app-target, $object-type, $show],
             $app-target,
