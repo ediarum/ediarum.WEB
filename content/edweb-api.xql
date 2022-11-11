@@ -306,6 +306,7 @@ declare function edwebapi:get-object(
     $object-id as xs:string
 ) as map(*) 
 {
+    let $cache := ""
     let $object-def := edwebapi:get-config($app-target)//appconf:object[@xml:id=$object-type]
 
     let $item := edwebapi:get-object-xml($app-target, $object-type, $object-id)
