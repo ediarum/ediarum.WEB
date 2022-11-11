@@ -492,10 +492,10 @@ declare function edwebapi:get-object-with-search(
     let $query := edwebapi:build-search-query($search-query, $search-type, $slop)
 
     let $query-function := ".[.//"||$search-xpath||"[ft:query(., $query)]]"
-    let $search-score as xs:float :=
+    let $search-score :=
         if ($search-xpath||$search-query||"" != "")
-        then xs:float(ft:score($xml))
-        else xs:float(0.0)
+        then ft:score($xml)
+        else 0.0
     let $search-hits :=
         if ($search-xpath||$search-query||"" != "")
         then
@@ -694,7 +694,7 @@ declare function edwebapi:eval-base-data-for-object(
             map:entry("object-type", $object-def/@xml:id/string()),
             map:entry("labels", array {(ft:field($object, $object-type||"---label") )}),
             map:entry("label", if (count(ft:field($object, $object-type||"---label")) > 0) then ft:field($object, $object-type||"---label")[1] else "<no-label-found>"),
-            map:entry("score", xs:float(0.0))
+            map:entry("score", 0.0)
         ))
 };
 
@@ -908,10 +908,10 @@ declare function edwebapi:get-object-list-with-search(
         for $object in $objects-xml
         let $id := string(util:eval-inline($object,$object-id))
         let $object-map := $list?($id)
-        let $search-score as xs:float := 
+        let $search-score := 
             if ($search-xpath||$search-query||"" != "")
-            then xs:float(ft:score($object))
-            else xs:float(0.0)
+            then ft:score($object)
+            else 0.0
         let $search-hits := 
             if ($search-xpath||$search-query||"" != "")
             then util:eval-inline($object, $query-function)
@@ -1273,7 +1273,7 @@ declare function edwebapi:get-relation-list(
         then ()
         else
             map:merge((
-                map:entry("xml", $rel),
+                map:entry("xml", serialize($rel)),
                 map:entry("internal-node-id", ft:field($rel, $relation-type-name||"---internal-node-id")),
                 map:entry("absolute-resource-id", ft:field($rel, $relation-type-name||"---absolute-resource-id")),
                 map:entry("subject", $subject),
@@ -1321,13 +1321,13 @@ declare function edwebapi:get-relation-list(
                         )
     let $map :=
         map:merge((
-            map:entry("date-time", current-dateTime()),
+            map:entry("date-time", string(current-dateTime())),
             map:entry("type", "relations"),
             map:entry("subject-type", $subject-type),
             map:entry("object-type", $object-type),
             map:entry("name", $name),
             map:entry("results-found", count($relations)),
-            map:entry("list", $relations )
+            map:entry("list",  array { $relations } )
         ))
 
     let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
