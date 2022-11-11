@@ -89,7 +89,7 @@ The basic information for an object type defines where to find the objects in th
 
 - `object/@xml:id` ID of the object type.
 - `name` name of the object type. Can be used in the frontend.
-- `collection` a relative path to the collection or to a resource where to search for objects. It mustn't contain an upward pointing path like `/../`.
+- `collection` a relative path to the collection or to a resource where to search for objects. It mustn't contain an upward pointing path like `/../`. **Attention:** If this collection is a subcollection of another defined object-type, this collection is excluded from the other object-type. That is, no items of the other object-type inside this collection will be found. To avoid this behaviour set here the same collection as for the other object-type. If a collection is unset here, one has to manually remove the `collection.xconf` file from the corresponding collection `/db/system/config/my-project-collection-path/my-unset-object-collection-path/collection.xconf` and reindex.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
 - `item/root` QName expression of the root element of every object. It only must contain a qualified name, e.g. `tei:TEI`.
 - `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as objects.
