@@ -51,8 +51,9 @@ declare function edwebapi:map-from-cache(
         then ()
         else if (not(util:binary-doc-available($cache-collection||"/"||$cache-file-name)))
         then ()
-        else if ($cache = "no")
-        then
+        else if ($cache = "yes")
+        then json-doc($cache-collection||"/"||$cache-file-name)
+        else
             let $data-collection := edwebapi:data-collection($app-target)
             let $node-set as node()* :=
                 if ($data-collection||"" = "")
@@ -69,7 +70,6 @@ declare function edwebapi:map-from-cache(
                 if (count($last-modified)=0)
                 then $map-from-cache
                 else ()
-        else json-doc($cache-collection||"/"||$cache-file-name)
 };
 
 declare function edwebapi:get-cache-file-name(
