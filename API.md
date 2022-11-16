@@ -149,5 +149,7 @@ If data is changed and the cache can be rebuild by adding a GET parameter
 to the above API calls:
 
 - `cache`. Possible values are:
-  - `no` cache is rebuild if newer data exists
-  - `reset` cache is always rebuild (exception: cache is not rebuild if it is newer than 1 minute)
+  - `off`: No cache is used or build.
+  - `yes`: If available cache is always used.
+  - (default) `no`: Cache is rebuild if newer data exists.
+  - `reset`: Cache is always rebuild.

@@ -328,8 +328,10 @@ components:
           description: list of object properties
           properties:
             id:
-              type: string
-              example: M012345
+              type: array
+              items:
+                type: string
+                example: M012345
           required:
             - "id"
           additionalProperties:

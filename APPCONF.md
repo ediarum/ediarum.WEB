@@ -410,7 +410,7 @@ The basic information for an relation type defines where to find the relations i
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
 - `item/root` QName of the root element of every relation.
 - `item/id` XPath expression where to find the ID of an object.
-- `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as relations.
+- `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as relations. **Attention:** The XPath expression is relative to the root, it must contain `.` to address the root. E.g. `./@key` instead of `/@key`.
 - `label` with `@type` a XPath or XQuery expression to define the label of the relation and is used as predicate in a relation expression. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one string as parameter: `function($string) { ... }`.
 
 ```xml
