@@ -756,6 +756,7 @@ declare function edwebcontroller:redirect-to-id(
     then (
        local:set-pass-through-false()
         ,
+        try {
         let $base-url := substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                 ||edwebcontroller:get-exist-controller()
         let $id := substring-after(edwebcontroller:get-exist-path(), $starts-with)
@@ -767,6 +768,14 @@ declare function edwebcontroller:redirect-to-id(
             <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
                 <redirect url="{$redirect}"/>
             </dispatch>
+        } catch * {
+            <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
+                <error-handler>
+                    <forward url="{edwebcontroller:get-exist-controller()}/views/static-pages/error-page.html" method="get"/>
+                    <forward url="{edwebcontroller:get-exist-controller()}/modules/view.xql"/>
+                </error-handler>
+            </dispatch>
+        }
     )
     else ()
 };
