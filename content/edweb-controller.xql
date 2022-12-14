@@ -5,7 +5,7 @@ xquery version "3.1";
  :)
 module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
-import module namespace console="http://exist-db.org/xquery/console";
+(: import module namespace console="http://exist-db.org/xquery/console"; :)
 import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
@@ -81,8 +81,8 @@ declare function edwebcontroller:api-get(
 ) as item()*
 {
     try {
-        console:log("api-get","Request: "||$api-path)
-        ,
+        (: console:log("api-get","Request: "||$api-path) :)
+        (: , :)
         let $store-attributes := 
             for $att in request:attribute-names()
             let $value := request:get-attribute($att)
