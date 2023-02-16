@@ -267,7 +267,7 @@ declare function edweb:add-link-to-prev-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?all[?label-pos=1]?id
+    let $labelled-ids := $model?order?id (: [?label-pos=1] :)
     let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
@@ -284,7 +284,7 @@ declare function edweb:add-link-to-next-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?all[?label-pos=1]?id
+    let $labelled-ids := $model?order?id (: [?label-pos=1] :)
     let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
@@ -707,6 +707,9 @@ declare %templates:wrap function edweb:load-current-object(
             request:get-attribute("id")
     let $map := edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id||"?output=json-xml")
     let $current-doc := map:entry("current-doc", $map?xml)
+    let $order-by := if ($object-type = ("briefe", "documents")) then "date" else "label"
+    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order="||$order-by)
+    let $model := map:put($model, "order", $all-objects)
     return
         map:merge(($model, $map, $current-doc))
 };
