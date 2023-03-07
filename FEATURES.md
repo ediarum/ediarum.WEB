@@ -51,6 +51,7 @@ It is possible to generate links of a `<a>` element with the use of simple const
 
 - `$base-url/` is replaced with the app root URL, e.g. `https://example.com/exist/apps/myapp/`
 - `$id/` is replaced with the link to the object with this ID, e.g. `https://example.com/exist/apps/myapp/object-type/id`
+- `$id-type(VARIABLE)/` is replaced with the link to the first object with the ID of this id-type (property).
 - `$edweb/` is replaced with the root URL of the ediarum.WEB app, e.g. `https://example.com/exist/apps/ediarum.WEB/`
 
 *Setup*

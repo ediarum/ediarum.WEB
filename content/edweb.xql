@@ -7,14 +7,14 @@ module namespace edweb="http://www.bbaw.de/telota/software/ediarum/web/lib";
 
 import module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
-import module namespace templates="http://exist-db.org/xquery/templates";
+import module namespace templates="http://exist-db.org/xquery/html-templating";
 import module namespace console="http://exist-db.org/xquery/console";
+import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
 declare namespace repo="http://exist-db.org/xquery/repo";
 declare namespace expath="http://expath.org/ns/pkg";
 declare namespace tei="http://www.tei-c.org/ns/1.0";
-declare namespace functx = "http://www.functx.com";
 declare namespace output="http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace test="http://exist-db.org/xquery/xqsuite";
 declare namespace http="http://expath.org/ns/http-client";
@@ -25,15 +25,6 @@ declare variable $edweb:projects-collection := "/db/projects";
 declare variable $edweb:param-separator := ";"; 
 declare variable $edweb:view-uri-label-separator := ":l:"; 
 declare variable $edweb:view-view-separator := "::v::"; 
-
-declare function functx:get-matches-and-non-matches($string as xs:string?, $regex as xs:string) as element()* { let $iomf := functx:index-of-match-first($string, $regex) return if (empty($iomf)) then <non-match>{$string}</non-match> else if ($iomf > 1) then (<non-match>{substring($string,1,$iomf - 1)}</non-match>, functx:get-matches-and-non-matches( substring($string,$iomf),$regex)) else let $length := string-length($string) - string-length(functx:replace-first($string, $regex,'')) return (<match>{substring($string,1,$length)}</match>, if (string-length($string) > $length) then functx:get-matches-and-non-matches(substring($string,$length + 1),$regex) else ()) };
-declare function functx:index-of-match-first($arg as xs:string?, $pattern as xs:string) as xs:integer? { if (matches($arg,$pattern)) then string-length(tokenize($arg, $pattern)[1]) + 1 else () };
-declare function functx:pad-integer-to-length($integerToPad as xs:anyAtomicType?, $length as xs:integer) as xs:string { if ($length < string-length(string($integerToPad))) then error(xs:QName('functx:Integer_Longer_Than_Length')) else concat (functx:repeat-string( '0',$length - string-length(string($integerToPad))), string($integerToPad)) };
-declare function functx:replace-first($arg as xs:string?, $pattern as xs:string, $replacement as xs:string) as xs:string { replace($arg, concat('(^.*?)', $pattern), concat('$1',$replacement)) };
-declare function functx:repeat-string($stringToRepeat as xs:string?, $count as xs:integer) as xs:string { string-join((for $i in 1 to $count return $stringToRepeat), '')};
-declare function functx:atomic-type( $values as xs:anyAtomicType* )  as xs:string* { for $val in $values return (if ($val instance of xs:untypedAtomic) then 'xs:untypedAtomic' else if ($val instance of xs:anyURI) then 'xs:anyURI' else if ($val instance of xs:ENTITY) then 'xs:ENTITY' else if ($val instance of xs:ID) then 'xs:ID' else if ($val instance of xs:NMTOKEN) then 'xs:NMTOKEN' else if ($val instance of xs:language) then 'xs:language' else if ($val instance of xs:NCName) then 'xs:NCName' else if ($val instance of xs:Name) then 'xs:Name' else if ($val instance of xs:token) then 'xs:token' else if ($val instance of xs:normalizedString) then 'xs:normalizedString' else if ($val instance of xs:string) then 'xs:string' else if ($val instance of xs:QName) then 'xs:QName' else if ($val instance of xs:boolean) then 'xs:boolean' else if ($val instance of xs:base64Binary) then 'xs:base64Binary' else if ($val instance of xs:hexBinary) then 'xs:hexBinary' else if ($val instance of xs:byte) then 'xs:byte' else if ($val instance of xs:short) then 'xs:short' else if ($val instance of xs:int) then 'xs:int' else if ($val instance of xs:long) then 'xs:long' else if ($val instance of xs:unsignedByte) then 'xs:unsignedByte' else if ($val instance of xs:unsignedShort) then 'xs:unsignedShort' else if ($val instance of xs:unsignedInt) then 'xs:unsignedInt' else if ($val instance of xs:unsignedLong) then 'xs:unsignedLong' else if ($val instance of xs:positiveInteger) then 'xs:positiveInteger' else if ($val instance of xs:nonNegativeInteger) then 'xs:nonNegativeInteger' else if ($val instance of xs:negativeInteger) then 'xs:negativeInteger' else if ($val instance of xs:nonPositiveInteger) then 'xs:nonPositiveInteger' else if ($val instance of xs:integer) then 'xs:integer' else if ($val instance of xs:decimal) then 'xs:decimal' else if ($val instance of xs:float) then 'xs:float' else if ($val instance of xs:double) then 'xs:double' else if ($val instance of xs:date) then 'xs:date' else if ($val instance of xs:time) then 'xs:time' else if ($val instance of xs:dateTime) then 'xs:dateTime' else if ($val instance of xs:dayTimeDuration) then 'xs:dayTimeDuration' else if ($val instance of xs:yearMonthDuration) then 'xs:yearMonthDuration' else if ($val instance of xs:duration) then 'xs:duration' else if ($val instance of xs:gMonth) then 'xs:gMonth' else if ($val instance of xs:gYear) then 'xs:gYear' else if ($val instance of xs:gYearMonth) then 'xs:gYearMonth' else if ($val instance of xs:gDay) then 'xs:gDay' else if ($val instance of xs:gMonthDay) then 'xs:gMonthDay' else 'unknown')};
-declare %test:args("abc123def", "\d") %test:assertEquals("1", "2", "3") function functx:get-matches ($string as xs:string?, $regex as xs:string) as xs:string* { functx:get-matches-and-non-matches($string,$regex)/self::match/string() };
-declare function functx:escape-for-regex ($arg as xs:string?) as xs:string { replace($arg, '(\.|\[|\]|\\|\||\-|\^|\$|\?|\*|\+|\{|\}|\(|\))','\\$1') };
 
 (: ADD funcctions returning complete html nodes :)
 
@@ -101,16 +92,15 @@ declare function edweb:add-breadcrumb-items(
             let $filter-value := 
                 if ($filter-value instance of array(*)) 
                 then $filter-value?*[1]
-                else $filter-value
+                else ($filter-value)[1]
             return $f||"="||$filter-value
         let $filter-value := 
             if ($filter-values instance of array(*)) 
-            then
-                    $filter-values?*[1]
-            else $filter-values
+            then $filter-values?*[1]
+            else ($filter-values)[1]
         let $href := string-join(($other-filter, $f||"="||$filter-value), "&amp;")
         return
-            if ($filter-value) 
+            if ($filter-value||"" != "")
             then
                     <li class="breadcrumb-item">
                         <a href="$base-url/{$object-type}/index.html?{$href}">{$filter-value}</a>
@@ -235,9 +225,9 @@ declare function edweb:add-filter-item-link(
 ) as node() 
 {
     let $href := $model?item?href
-    let $enabled := if ($model?item?count-select > 0) then "enabled" else "disabled"
+    let $enabled := if ($model?item?count-select = 0) then "disabled" else "enabled"
     let $selected := if ($model?item?selected eq "selected") then "current" else ()
-    let $count := <span class="count">{$model?item?count-select}</span>
+    let $count := if ($model?item?count-select = -1) then () else <span class="count">{$model?item?count-select}</span>
     let $close := 
         if ($model("item")("selected") eq "selected") 
         then <span aria-hidden="true" class="pull-right close">×</span>
@@ -277,7 +267,7 @@ declare function edweb:add-link-to-prev-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?labelled[?label-pos=1]?id
+    let $labelled-ids := $model?all[?label-pos=1]?id
     let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
@@ -294,7 +284,7 @@ declare function edweb:add-link-to-next-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?labelled[?label-pos=1]?id
+    let $labelled-ids := $model?all[?label-pos=1]?id
     let $object-type := $model?object-type
     let $position := index-of( $labelled-ids, $model?id )
     return
@@ -683,6 +673,16 @@ declare %templates:wrap function edweb:load(
         map:merge(($model, $add-map))
 };
 
+declare function local:load(
+    $model as map(*),
+    $api-path as xs:string
+) as map(*)
+{
+    if (map:contains($model, $api-path))
+    then $model
+    else map:put($model, $api-path,  edwebcontroller:api-get($api-path))
+};
+
 (:~
  : Loads an object with the current id and object-type.
  :
@@ -705,15 +705,8 @@ declare %templates:wrap function edweb:load-current-object(
             return  $object?id
         else
             request:get-attribute("id")
-    let $map := edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id)
-    let $current-doc := 
-        map:entry( 
-            "current-doc",
-            edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id||"?output=xml")
-        )
-    (: TODO: Remove this. The following line must be present! Otherwise there exists an error: "element(<xml>...</xml>) is not a subtype of map"! :)
-(:    let $c := console:log("loading", $current-doc):)
-(:    let $model := edweb:load-project($node, $model):)
+    let $map := edwebcontroller:api-get("/api/"||$object-type||"/"||$object-id||"?output=json-xml")
+    let $current-doc := map:entry("current-doc", $map?xml)
     return
         map:merge(($model, $map, $current-doc))
 };
@@ -722,57 +715,55 @@ declare %templates:wrap function edweb:load-current-object(
  :
  :)
 declare %templates:wrap function edweb:load-filter(
-    $node as node(), 
-    $model as map(*), 
+    $node as node(),
+    $model as map(*),
     $filter-name as xs:string
-) as map(*) 
+) as map(*)
 {
     let $object-type := request:get-attribute("object-type")
     let $map-entries :=
-        for $filter in $model?("filters")?*
+        for $filter in $model?filters?*
         return
-            if (contains(" "||$filter("depends")||" ", " "||$filter-name||" ")) 
-            then map:entry($filter?("id"), "")
+            if (contains(" "||$filter?depends||" ", " "||$filter-name||" "))
+            then map:entry($filter?id, "")
             else ()
-    let $map := edwebcontroller:api-get("/api/"||$object-type)
-    let $labels := 
-        for $l in distinct-values($model?("all")?("filter")?($filter-name))[. != '']
+    let $labels :=
+        for $l in distinct-values($model?all?filter?($filter-name))[. != '']
         let $this-label := $l
-        let $add-label := 
+        let $add-label :=
             string-join(
                 distinct-values((
                     tokenize($model("params")($filter-name), $edweb:param-separator),
                     $l
-                )), 
+                )),
                 $edweb:param-separator
             )
-        let $remove-label := 
+        let $remove-label :=
             string-join(
                 distinct-values(
                     tokenize($model("params")($filter-name), $edweb:param-separator)[not(.=$l)]
-                ), 
+                ),
                 $edweb:param-separator
             )
         let $selected :=
-            if ($this-label = tokenize($model?params?($filter-name), $edweb:param-separator)) 
+            if ($this-label = tokenize($model?params?($filter-name), $edweb:param-separator))
             then "selected"
             else ""
+        let $type := $model?filters?($filter-name)?type
         let $filter-params :=
-            let $type := $model?filters?($filter-name)?type 
-            return
-                if ($type eq "single" or $type eq "greater-than" or $type eq "lower-than") 
-                then 
+                if ($type eq "single" or $type eq "greater-than" or $type eq "lower-than")
+                then
                     edweb:params-insert(
-                        $model("params"),
+                        $model?params,
                         map:merge((
-                            map:entry($filter-name, $this-label), 
+                            map:entry($filter-name, $this-label),
                             $map-entries
                         ))
                     )
-                else if ($selected) 
+                else if ($selected)
                 then
                     edweb:params-insert(
-                        $model("params"),
+                        $model?params,
                         map:merge((
                             map:entry($filter-name, $remove-label),
                             $map-entries
@@ -780,20 +771,34 @@ declare %templates:wrap function edweb:load-filter(
                     )
                 else
                     edweb:params-insert(
-                        $model("params"),
+                        $model?params,
                         map:merge((
                             map:entry($filter-name, $add-label),
                             $map-entries
                         ))
                     )
-        let $filter-select-items :=
-            let $params := edweb:params-load-from-string($filter-params)
-            return local:filter-list($map?list?*, $map?filter, $params)
-        let $count-select := 
-            if (exists($filter-select-items)) 
-            then count($filter-select-items) 
-            else 0
-        order by $l 
+        let $count-select :=
+            (: If filter is intersect, count can be calculated :)
+            if ($type = "intersect")
+            then count($model?filtered[?filter?($filter-name)=$this-label])
+            (: If filter is set, enable all filter values but count. :)
+            else if ($model?params?($filter-name) != "")
+            then -1
+            else
+                switch($type)
+                case "single"
+                return     count($model?filtered[?filter?($filter-name)=$this-label])
+                case "union"
+                return     count($model?filtered[?filter?($filter-name)=$this-label])
+                case "intersect"
+                return     count($model?filtered[?filter?($filter-name)=$this-label])
+                case "greater-than"
+                return     count($model?filtered[?filter?($filter-name)>=$this-label])
+                case "lower-than"
+                return     count($model?filtered[?filter?($filter-name)<=$this-label])
+                default
+                return 0
+        order by $l
         return
             map:merge((
                 map:entry("label", $l),
@@ -801,62 +806,12 @@ declare %templates:wrap function edweb:load-filter(
                 map:entry("count-select", $count-select),
                 map:entry("href", request:get-uri()||"?"||$filter-params)
             ))
-    let $add-map := 
+    let $add-map :=
         map:merge((
             map:entry("filter", $model?("filters")?($filter-name)),
             map:entry("filter-items", ($labels))
         ))
     return map:merge(($model, $add-map))
-};
-
-(:~
- : see edwebapi:filter-list
- :)
-declare function local:filter-list(
-    $list as map(*)*, 
-    $filters as map(*), 
-    $params as map(*)
-) as map(*)* 
-{
-    if (count(map:keys($filters)) > 0) then
-        let $filter := $filters?*[1]
-        let $filter-id := $filter?id
-        let $filter-values := tokenize($params?($filter-id), $edweb:param-separator)
-        let $filter-expression :=
-            if (empty($filter-values)) 
-            then function($list as map(*)*) { $list}
-            else
-                switch($filter?type)
-                case "single" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
-                case "union" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
-                case "intersect" 
-                return
-                    function($list as map(*)*) {
-                        for $item in $list 
-                        let $item-filter-values := $item?filter?($filter-id)
-                        let $filters-are-true := 
-                            for $fv in $filter-values 
-                            return ($fv = $item-filter-values) 
-                        return
-                            if (not( false() = ($filters-are-true) )) 
-                            then $item
-                            else ()
-                    }
-                case "greater-than" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) >= $filter-values] }
-                case "lower-than" 
-                return function($list as map(*)*) { $list[?filter?($filter-id) <= $filter-values] }
-                default 
-                return function($list as map(*)*) { () }
-        let $filtered-list := $filter-expression($list)
-        let $other-filter := map:remove($filters, $filter-id)
-        return
-            if (count(map:keys($other-filter)) > 0) 
-            then local:filter-list($filtered-list, $other-filter, $params)
-            else $filtered-list
-    else $list
 };
 
 (:~
@@ -882,37 +837,58 @@ declare %templates:wrap function edweb:load-inner-navigation(
  :
  :)
 declare %templates:wrap function edweb:load-objects(
-    $node as node(), 
+    $node as node(),
     $model as map(*)
-) as map(*) 
+) as map(*)
 {
     let $object-type := request:get-attribute("object-type")
-    let $object-type-label := 
-        edwebcontroller:api-get("/api")//appconf:object[@xml:id=$object-type]/appconf:name
-    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all")
-    let $c := console:log("loading", count($all-objects))
-    let $labelled-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
-    let $c := console:log("loading", count($labelled-objects))
-    let $filters := edwebcontroller:api-get("/api/"||$object-type||"?show=filter")
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $object-def := $appconf//appconf:object[@xml:id=$object-type]
+    let $object-type-label := $object-def/appconf:name
+    let $filters :=
+        map:merge((
+            for $f at $pos in $object-def/appconf:filters/*
+            let $key := $f/@xml:id/string()
+            return
+                map:entry(
+                    $key,
+                    map:merge((
+                        map:entry("id", $key),
+                        map:entry("name", $f/appconf:name/string()),
+                        map:entry("n", $pos),
+                        map:entry("type", $f/appconf:type/string()),
+                        map:entry("depends", $f/@depends/string()),
+                        map:entry("xpath", $f/appconf:xpath/string()),
+                        map:entry(
+                            "label-function",
+                            $f/appconf:label-function[@type='xquery']/normalize-space()
+                        )
+                    ))
+                )
+        ))
+
     let $filter-params := edweb:params-load((map:keys($filters)))
-    let $filtered-objects := 
-        edwebcontroller:api-get(
-            "/api/"||$object-type||"?show=list&amp;order=label&amp;"
-            ||edweb:params-insert($filter-params)
-        )
-    let $c := console:log("loading", count($filtered-objects))
-    let $show-objects := 
-        edwebcontroller:api-get(
-            "/api/"||$object-type||"?show=list&amp;order=label&amp;page="||edweb:params-get-page()
-            ||"&amp;range="||edweb:params-get-page-size()||"&amp;"||edweb:params-insert($filter-params)
-        )
-    let $c := console:log("loading", count($show-objects))
-    let $add-map := 
+    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
+    let $filtered-objects :=
+        if (edweb:params-insert($filter-params) != "")
+        then
+            edwebcontroller:api-get(
+                "/api/"||$object-type||"?show=list&amp;order=label&amp;"
+                ||edweb:params-insert($filter-params)
+            )
+        else $all-objects
+    let $show-objects :=
+        let $array := $filtered-objects
+        let $page := edweb:params-get-page()
+        let $range := edweb:params-get-page-size()
+        return
+            subsequence($array, (($page - 1) * $range) + 1, $range )
+    let $add-map :=
         map:merge((
             map:entry("object-type", $object-type),
             map:entry("object-type-label", $object-type-label),
             map:entry("all", $all-objects),
-            map:entry("labelled", $labelled-objects),
             map:entry("filtered", $filtered-objects),
             map:entry("show", $show-objects),
             map:entry("filters", $filters),
@@ -929,9 +905,10 @@ declare %templates:wrap function edweb:load-objects(
 declare function edweb:load-project(
     $node as node(),
     $model as map(*)
-) as map(*) 
+) as map(*)
 {
-    let $appconf := edwebcontroller:api-get("/api")
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
     let $project-status := $appconf//appconf:project/appconf:status/string()
     let $project-name := $appconf//appconf:project/appconf:name/string()
     let $project-map :=
@@ -991,15 +968,12 @@ declare function edweb:load-relations-for-subject-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations-map := edwebcontroller:api-get("/api/"||$relation)
-    let $object-list := edwebcontroller:api-get("/api/"||$relations-map("object-type"))
-    let $relations := $relations-map?list?*[?subject = $id]
-    let $items := 
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;subject="||$id)
+    let $items :=
         for $r in $relations
-        let $object-id := $r?object
-        let $object-map := $object-list?list?($object-id)
+        let $object-map := $r?object
         order by $object-map?label
-        return 
+        return
             map:merge((
                 $object-map,
                 map:entry("predicate", $r?predicate),
@@ -1066,15 +1040,12 @@ declare function edweb:load-relations-for-object-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations-map := edwebcontroller:api-get("/api/"||$relation)
-    let $subject-list := edwebcontroller:api-get("/api/"||$relations-map("subject-type"))
-    let $relations := $relations-map?list?*[?object = $id]
-    let $items := 
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;object="||$id)
+    let $items :=
         for $r in $relations
-        let $subject-id := $r?subject
-        let $subject-map := $subject-list?list?($subject-id)
+        let $subject-map := $r?subject
         order by $subject-map?label
-        return 
+        return
             map:merge((
                 $subject-map,
                 map:entry("predicate", $r?predicate),
@@ -1187,7 +1158,18 @@ declare function edweb:view-expand-links(
     $error-function as function(*)?
 ) as node()
 {
-    let $link-list := edwebcontroller:api-get("/api?id-type=all")
+    let $link-list := edwebcontroller:api-get("/api?id-type=complete")
+    let $current-id := request:get-attribute("id")
+    let $set-referer :=
+        if ($current-id||"" != "")
+        then 
+            let $object := $link-list?($current-id)
+            let $object-type := $object?object-type
+            let $id-types := edwebcontroller:api-get("/api")//appconf:object[@xml:id=$object-type]//appconf:filter[appconf:type="id"]/@xml:id/string()
+            let $ids := for $id-type in $id-types return $id-type||":"||$object?filter?($id-type)
+            return
+                "?ref="||string-join(($current-id, $ids),'+')
+        else ""
     let $error-f := 
         if ($error-function instance of function(*)) 
         then $error-function
@@ -1198,7 +1180,7 @@ declare function edweb:view-expand-links(
                     "There is no object with id: "||$href
                 )
             }
-    return local:view-expand-links($node, $link-list, $error-f)
+    return local:view-expand-links($node, $link-list, $set-referer, $error-f)
 };
 
 
@@ -1206,8 +1188,9 @@ declare function edweb:view-expand-links(
  :
  :)
 declare function local:view-expand-links(
-    $node as node(), 
-    $link-list as map(), 
+    $node as node(),
+    $link-list as map(),
+    $set-referer as xs:string,
     $error-function as function(*)
 ) as node()
 {
@@ -1230,48 +1213,76 @@ declare function local:view-expand-links(
             else if (starts-with($attribute, "$id/")) 
             then
                 try {
-                    let $current-id := request:get-attribute("id")
-                    let $set-referer :=
-                        if ($current-id||"" != "")
-                        then "?ref="||$current-id
+                    let $key-id :=
+                        if (matches($attribute,'#'))
+                        then substring-before(substring-after($attribute, "$id/"),'#')
+                        else substring-after($attribute, "$id/")
+                    let $anchor :=
+                        if (matches($attribute,'#'))
+                        then "#"||substring-after($attribute, '#')
                         else ""
                     return
-                        if (matches($attribute,'#'))
+                        if (map:contains($link-list, $key-id))
                         then
                             substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                             ||edwebcontroller:get-exist-controller()||"/"
-                            ||$link-list?(substring-before(substring-after($attribute, "$id/"),'#'))?object-type
-                            ||"/"||substring-before(substring-after($attribute, "$id/"),'#')||$set-referer
-                            ||"#"||substring-after($attribute, '#')
+                            ||$link-list?($key-id)?object-type
+                            ||"/"||$key-id||$set-referer
+                            ||$anchor
                         else
+                            $error-function($attribute)
+                }
+                catch * {
+                    $error-function($attribute)
+                }
+else if (starts-with($attribute, "$id-type(")) 
+            then
+                try {
+                    let $id-type := substring-after(substring-before($attribute, ")/"), "$id-type(")
+                    let $key-id :=
+                        if (matches($attribute,'#'))
+                        then substring-before(substring-after($attribute, "$id-type("||$id-type||")/"),'#')
+                        else substring-after($attribute, "$id-type("||$id-type||")/")
+                    let $anchor :=
+                        if (matches($attribute,'#'))
+                        then "#"||substring-after($attribute, '#')
+                        else ""
+                    let $object := $link-list?*[?filter?($id-type)=$key-id][1]
+                    return
+                        if (not(empty($object)))
+                        then
                             substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                             ||edwebcontroller:get-exist-controller()||"/"
-                            ||$link-list?(substring-after($attribute, "$id/"))?object-type
-                            ||"/"||substring-after($attribute, "$id/")||$set-referer
-                } 
+                            ||$object?object-type
+                            ||"/"||$object?id||$set-referer
+                            ||$anchor
+                        else
+                            $error-function($attribute)
+                }
                 catch * {
                     $error-function($attribute)
                 }
             else $attribute
         return
-            if ($node/@href) 
+            if ($node/@href)
             then
                 element { node-name($node) } {
                     attribute href { $expanded },
-                    $node/@* except $node/@href, 
-                    let $href-id := substring-after($attribute, "$id/") 
-                    let $referer := request:get-parameter("ref", request:get-attribute("ref"))
+                    $node/@* except $node/@href,
+                    let $href-id := substring-after($attribute, "$id/")
+                    let $href-id-type := replace(substring-after($attribute, "$id-type("),'\)/',':')
+                    let $referer := tokenize(request:get-parameter("ref", request:get-attribute("ref")),' ')
                     return
-                    if ($href-id=$referer)
+                    if ($href-id=$referer or $href-id-type=$referer)
                     then
                         element span {
                             attribute class { "referer" },
                             for $child in $node/node() 
-                            return local:view-expand-links($child, $link-list, $error-function)
+                            return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                         }
                     else
                         for $child in $node/node() 
-                        return local:view-expand-links($child, $link-list, $error-function)
+                        return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                 }
             else if ($node/@src)
             then
@@ -1279,13 +1290,13 @@ declare function local:view-expand-links(
                     attribute src { $expanded },
                     $node/@* except $node/@src, 
                     for $child in $node/node() 
-                    return local:view-expand-links($child, $link-list, $error-function)
+                    return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                 }
             else
                 element { node-name($node) } {
                     $node/@*, 
                     for $child in $node/node() 
-                    return local:view-expand-links($child, $link-list, $error-function)
+                    return local:view-expand-links($child, $link-list, $set-referer, $error-function)
                 }
     else if ($node instance of text()) 
     then $node

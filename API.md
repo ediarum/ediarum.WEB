@@ -31,7 +31,11 @@ Returns a JSON list with all object IDs to identify by ID which object type a sp
 
 ### 2.1 GET-Parameters
 
-- `id` must be equal to `all`.
+- `id` is the same as the parameter `id-type`.
+- `id-type` possible values are:
+  - `all` get the ids of all objects
+  - `complete` get the ids and properties of all objects
+  - other values: to filter only objects which have a id property of this type, e.g. `id-type=gnd`.
 - optional `limit` defines how many objects of each type are retrieved,
 
 ## 3. List of objects or relations
