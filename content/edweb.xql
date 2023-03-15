@@ -267,8 +267,8 @@ declare function edweb:add-link-to-prev-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?order?id (: [?label-pos=1] :)
     let $object-type := $model?object-type
+    let $labelled-ids := if ($object-type = ("briefe", "documents")) then $model?order?id else $model?all[?label-pos=1]?id
     let $position := index-of( $labelled-ids, $model?id )
     return
         if ($labelled-ids[$position -1]) 
@@ -284,8 +284,8 @@ declare function edweb:add-link-to-next-object(
     $model as map(*)
 ) 
 {
-    let $labelled-ids := $model?order?id (: [?label-pos=1] :)
     let $object-type := $model?object-type
+    let $labelled-ids := if ($object-type = ("briefe", "documents")) then $model?order?id else $model?all[?label-pos=1]?id
     let $position := index-of( $labelled-ids, $model?id )
     return
         if ($labelled-ids[$position +1]) 
