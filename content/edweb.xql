@@ -1641,7 +1641,19 @@ declare function edweb:template-transform-current(
                 return element param {
                     attribute name { $param/@name },
                     attribute value { $param/@value }
-            }
+            },
+            if (not($resource))
+            then
+                (let $params := if ($view != "")
+                                then tokenize($model?views?($view)?params, ' ')
+                                else tokenize($model?views?*[?n=1]?params, ' ')
+                return for $param in $params
+                        return element  param {
+                                            attribute name { "view" },
+                                            attribute value { $param }
+                                        }
+                )
+            else ()
         } </parameters>
     let $result :=
         try {
