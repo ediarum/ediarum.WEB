@@ -1091,11 +1091,11 @@ declare function edwebapi:order-items(
     then
         if (not($order-modifier = "descending")) then
             for $item in $list
-            order by $item?filter?($order)
+            order by $item?filter?($order)?1
             return $item
         else
             for $item in $list
-            order by $item?filter?($order) descending
+            order by $item?filter?($order)?1 descending
             return $item
     else
         let $long-list :=
