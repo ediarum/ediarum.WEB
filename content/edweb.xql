@@ -595,7 +595,7 @@ declare function edweb:insert-string(
     $node as node(), 
     $model as map(*), 
     $path as xs:string
-) as xs:string? 
+) as xs:string* 
 {
     local:template-get-string($model, $path)
 };
@@ -624,14 +624,18 @@ declare function edweb:insert-xml-string(
 
 
 declare function local:template-get-string(
-    $model as map(*), 
+    $model as map(*),
     $path as xs:string
-) as xs:string? 
-{ 
+) as xs:string*
+{
     if (contains($path, "?")) 
     then
-        let $model := $model?(substring-before($path, "?"))
+        let $model :=
+            if (substring-before($path,"?") = "*")
+            then $model?*
+            else $model?(substring-before($path, "?"))
         let $path := substring-after($path, "?")
+        for $model in $model
         return
             if ($model instance of array(*))
             then local:template-get-string-from-array($model, $path)            
@@ -642,7 +646,7 @@ declare function local:template-get-string(
 declare function local:template-get-string-from-array(
     $model as array(*), 
     $path as xs:string
-) as xs:string? 
+) as xs:string* 
 {
     if (contains($path, "?")) 
     then
@@ -652,6 +656,8 @@ declare function local:template-get-string-from-array(
             if ($model instance of array(*))
             then local:template-get-string-from-array($model, $path)            
             else local:template-get-string($model, $path)
+    else if (contains($path, "*")) 
+    then $model?*
     else $model?(xs:int($path))||""
 };
 
@@ -1518,6 +1524,18 @@ declare function edweb:template-do-if-not-empty($node as node(), $model as map(*
     else ()
 };
 
+declare function edweb:template-for-each(
+    $node as node(),
+    $model as map(*),
+    $from as xs:string,
+    $to as xs:string
+)
+{
+    for $item in edweb:insert-string($node, $model, $from)
+    return
+        templates:process($node/node(), map:merge(($model, map:entry($to, $item))))
+};
+
 declare function edweb:template-for-each-group( 
     $node as node(), 
     $model as map(*), 
@@ -1527,7 +1545,10 @@ declare function edweb:template-for-each-group(
 )
 {
     for $group in $model?($from)
-    let $param-group-by := $group?($group-by)
+    let $param-group-by := 
+        if (contains($group-by, '?'))
+        then local:template-get-string($group, $group-by)
+        else $group?($group-by)
     group by $param-group-by
     order by $param-group-by
     return
