@@ -767,42 +767,6 @@ declare function edwebapi:get-object-list(
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
 
-    let $filter :=
-        map:merge((
-            map:entry(
-                "id",
-                map:merge((
-                        map:entry("id", "id"),
-                        map:entry("name", "ID"),
-                        map:entry("n", 0),
-                        map:entry("type", "id"),
-                        map:entry("depends", ""),
-                        map:entry("xpath", $object-def/appconf:item/appconf:id),
-                        map:entry(
-                            "label-function", "function($string) { $string }"
-                        )
-                ))
-            ),
-            for $f at $pos in $object-def/appconf:filters/appconf:filter
-            let $key := $f/@xml:id/string()
-            return
-                map:entry(
-                    $key, 
-                    map:merge((
-                        map:entry("id", $key),
-                        map:entry("name", $f/appconf:name/string()),
-                        map:entry("n", $pos),
-                        map:entry("type", $f/appconf:type/string()),
-                        map:entry("depends", $f/@depends/string()),
-                        map:entry("xpath", $f/appconf:xpath/string()),
-                        map:entry(
-                            "label-function", 
-                            $f/appconf:label-function[@type='xquery']/normalize-space()
-                        )
-                    ))
-                )
-        ))
-
     let $objects-xml := edwebapi:get-objects($app-target, $object-type)
     let $count := count($objects-xml)
     let $relations :=
@@ -852,6 +816,47 @@ declare function edwebapi:get-object-list(
                     $filter-map
                 ))
             )
+
+    let $filter :=
+        map:merge((
+            map:entry(
+                "id",
+                map:merge((
+                        map:entry("id", "id"),
+                        map:entry("name", "ID"),
+                        map:entry("n", 0),
+                        map:entry("type", "id"),
+                        map:entry("depends", ""),
+                        map:entry("xpath", $object-def/appconf:item/appconf:id),
+                        map:entry(
+                            "label-function", "function($string) { $string }"
+                        )
+                ))
+            ),
+            for $f at $pos in $object-def/appconf:filters/appconf:filter
+            let $key := $f/@xml:id/string()
+            return
+                map:entry(
+                    $key, 
+                    map:merge((
+                        map:entry("id", $key),
+                        map:entry("name", $f/appconf:name/string()),
+                        map:entry("n", $pos),
+                        map:entry("type", $f/appconf:type/string()),
+                        map:entry("depends", $f/@depends/string()),
+                        map:entry("xpath", $f/appconf:xpath/string()),
+                        map:entry(
+                            "label-function", 
+                            $f/appconf:label-function[@type='xquery']/normalize-space()
+                        ),
+                        if (not($f/appconf:type/string() = ("id", "string")))
+                        then
+                            map:entry("values", array { map:merge(( $objects ))?*?("filter")?($key)?* => distinct-values() => functx:sort() } )
+                        else ()
+                    ))
+                )
+        ))
+
     let $map :=
         map:merge((
             map:entry("date-time", current-dateTime()),
