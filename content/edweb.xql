@@ -1567,7 +1567,7 @@ declare %templates:wrap function edweb:template-show-filters(
     $model as map(*)
 ) as node()* 
 {
-    for $filter in $model?filters?*[?type != "id"]
+    for $filter in $model?filters?*[(?type = ("id","string"))=>not()]
     let $div :=
         <div data-template="edweb:load-filter" data-template-filter-name="{$filter?id}">
             {$node/*}
