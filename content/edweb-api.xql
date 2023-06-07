@@ -1049,7 +1049,7 @@ declare function edwebapi:get-search-results(
         let $search-xpath := $target/@xpath/string()
 
         (: Get object list with search :)
-        let $object-list := edwebapi:get-object-list($app-target, $object-type, $true(), $cache)
+        let $object-list := edwebapi:get-object-list($app-target, $object-type, true(), $cache)
         return 
             edwebapi:get-object-list-with-search(
                 $object-list, 
