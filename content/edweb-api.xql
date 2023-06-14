@@ -428,13 +428,11 @@ declare function edwebapi:get-object(
  :)
 declare function edwebapi:get-object-as(
     $app-target as xs:string,
-    $object-type as xs:string, 
-    $object-id as xs:string,
+    $object as map(*),
     $view as xs:string,
     $params as map(*)
 ) as node()* 
 {
-    let $object := edwebapi:get-object($app-target, $object-type, $object-id)
     let $xsl-path := $object?views?($view)?xslt
     let $path := $app-target||"/"||$xsl-path
     let $stylesheet := 

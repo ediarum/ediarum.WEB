@@ -51,7 +51,7 @@ let $xml :=
     if ($view != "")
     then 
         let $view-params := local:init-params((tokenize($map?views?($view)?params,' ')))
-        return edwebapi:get-object-as($app-target, $object-type, $object-id, $view, $view-params)
+        return edwebapi:get-object-as($app-target, $map, $view, $view-params)
     else 
         $map?xml
 
