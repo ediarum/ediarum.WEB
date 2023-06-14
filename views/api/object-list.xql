@@ -61,8 +61,8 @@ let $result :=
     then
         if ($show = ("", "list", "full"))
         then edwebapi:get-relation-list($app-target, $object-type, $show eq "full", $cache)
-        else "Parameter 'show' must be one of 'list', 'full' or ''."
-    else $object-type||" isn't defined for '"||$app-target||"'."
+        else error(xs:QName("edwebapi:object-list-001"), "Parameter 'show' must be one of 'list', 'full' or ''.")
+    else error(xs:QName("edwebapi:object-list-002"),$object-type||" isn't defined for '"||$app-target||"'.")
 return
     if ($is-object and ($show eq 'list' or $show eq 'all' or $show eq 'compact')) 
     then
