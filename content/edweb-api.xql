@@ -104,49 +104,51 @@ declare function edwebapi:save-to-cache(
  : 
  :)
 declare function edwebapi:filter-list(
-    $list as map(*)*, 
-    $filters as map(*), 
+    $list as map(*)*,
+    $filters as map(*),
     $params as map(*)
-) as map(*)* 
+) as map(*)*
 {
     if (count(map:keys($filters)) > 0) then
         let $filter := $filters?*[1]
         let $filter-id := $filter?id
         let $filter-values := tokenize($params?($filter-id), $edwebapi:param-separator)
         let $filter-expression :=
-            if (empty($filter-values)) 
+            if (empty($filter-values))
             then function($list as map(*)*) { $list}
             else
                 switch($filter?type)
-                case "id" 
+                case "id"
                 return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
-                case "single" 
+                case "single"
                 return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
-                case "union" 
+                case "string"
                 return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
-                case "intersect" 
+                case "union"
+                return function($list as map(*)*) { $list[?filter?($filter-id) = $filter-values] }
+                case "intersect"
                 return
                     function($list as map(*)*) {
-                        for $item in $list 
+                        for $item in $list
                         let $item-filter-values := $item?filter?($filter-id)
-                        let $filters-are-true := 
-                            for $fv in $filter-values 
-                            return ($fv = $item-filter-values) 
+                        let $filters-are-true :=
+                            for $fv in $filter-values
+                            return ($fv = $item-filter-values)
                         return
-                            if (not( false() = ($filters-are-true) )) 
+                            if (not( false() = ($filters-are-true) ))
                             then $item
                             else ()
                     }
-                case "greater-than" 
+                case "greater-than"
                 return function($list as map(*)*) { $list[?filter?($filter-id) >= $filter-values] }
-                case "lower-than" 
+                case "lower-than"
                 return function($list as map(*)*) { $list[?filter?($filter-id) <= $filter-values] }
-                default 
+                default
                 return function($list as map(*)*) { () }
         let $filtered-list := $filter-expression($list)
         let $other-filter := map:remove($filters, $filter-id)
         return
-            if (count(map:keys($other-filter)) > 0) 
+            if (count(map:keys($other-filter)) > 0)
             then edwebapi:filter-list($filtered-list, $other-filter, $params)
             else $filtered-list
     else $list
@@ -934,7 +936,7 @@ declare function edwebapi:get-object-list-with-search(
         else $search-xpath
     let $query := edwebapi:build-search-query($search-query, $search-type, $slop)
 
-    let $objects-xml := 
+    let $objects-xml :=
         if ($search-xpath||$search-query||"" != "")
         then
             let $init-indices := local:init-search-indices($app-target)
@@ -954,13 +956,13 @@ declare function edwebapi:get-object-list-with-search(
                     $filter-map,
 
                     (: NEUE SUCHE :)
-            if ($search-xpath||$search-query||"" != "")
+                    if ($search-xpath||$search-query||"" != "")
                     then map:entry("score", ft:score($object))
                     else (),
                     if ($search-xpath||$search-query||"" != "" and $kwic-width != "0")
                     then
                         edwebapi:eval-search-results-for-object($search-query,$search-xpath,$search-type,$slop,$kwic-width,$query,$object)
-            else ()
+                    else ()
                 ))
             )
 
@@ -982,8 +984,8 @@ declare function edwebapi:get-object-list-with-search(
             ),
             for $f at $pos in $object-def/appconf:filters/appconf:filter
             let $key := $f/@xml:id/string()
-        return
-            map:entry(
+            return
+                map:entry(
                     $key, 
                     map:merge((
                         map:entry("id", $key),
@@ -1026,26 +1028,26 @@ declare function edwebapi:eval-search-results-for-object(
     $query as xs:string,
     $object as node()*
 ){
-                    map:entry(
-                        "search-results",
-                        if ($search-type = 'distance')
-                        then ()
-                        else if ($search-type = 'distance-all-matches')
-                        then
-                            let $wg1 := substring-before($search-query, '~')
-                            let $wg2 := substring-after($search-query, '~')
-                            return
-                                let $query := "(("||$wg1||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg2||"))|(("||$wg2||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg1||"))"
-                                let $matches := functx:get-matches(normalize-space($object), $query)
-                                return for $match in $matches
-                                let $m-1 := functx:get-matches($match, $query)[1]
-                                return
-                                map:merge ((
-                                    map:entry("keyword-1", substring-before($m-1, " ")),
-                                    map:entry("context", $m-1),
-                                    map:entry("keyword-2", functx:substring-after-last($m-1, " "))
-                                ))
-                        else
+    map:entry(
+        "search-results",
+        if ($search-type = 'distance')
+        then ()
+        else if ($search-type = 'distance-all-matches')
+        then
+            let $wg1 := substring-before($search-query, '~')
+            let $wg2 := substring-after($search-query, '~')
+            return
+                let $query := "(("||$wg1||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg2||"))|(("||$wg2||")\S*(\s+\S+){1,"||$slop||"}?\s+("||$wg1||"))"
+                let $matches := functx:get-matches(normalize-space($object), $query)
+                return for $match in $matches
+                let $m-1 := functx:get-matches($match, $query)[1]
+                return
+                map:merge ((
+                    map:entry("keyword-1", substring-before($m-1, " ")),
+                    map:entry("context", $m-1),
+                    map:entry("keyword-2", functx:substring-after-last($m-1, " "))
+                ))
+        else
         let $kwic-width :=
             if ($kwic-width||"" = "")
             then "30"
@@ -1053,18 +1055,18 @@ declare function edwebapi:eval-search-results-for-object(
         let $query-function := ".//"||$search-xpath||"[ft:query(., $query)]"
         let $search-hits := util:eval-inline($object, $query-function)
         return
-                        for $hit in $search-hits
-                        let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
-                        (: TODO delete following line? :)
-                        for $item at $pos in $kwic
-                        return 
-                            map:merge ((
-                                map:entry("context-previous", $kwic[$pos]/span[@class='previous']/string()),
-                                map:entry("keyword", $kwic[$pos]/span[@class='hi']/string()),
-                                map:entry("context-following", $kwic[$pos]/span[@class='following']/string()),
-                                map:entry("score", ft:score($hit))
-                            ))
-            )
+        for $hit in $search-hits
+        let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
+        (: TODO delete following line? :)
+        for $item at $pos in $kwic
+        return
+            map:merge ((
+                map:entry("context-previous", $kwic[$pos]/span[@class='previous']/string()),
+                map:entry("keyword", $kwic[$pos]/span[@class='hi']/string()),
+                map:entry("context-following", $kwic[$pos]/span[@class='following']/string()),
+                map:entry("score", ft:score($hit))
+            ))
+    )
 };
 
 declare function local:get-matches($string as xs:string?, $regex as xs:string) as xs:string* {
