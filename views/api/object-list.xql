@@ -52,21 +52,20 @@ let $config := edwebapi:get-config($app-target)
 let $is-object := exists($config//appconf:object[@xml:id=$object-type])
 let $is-relation := exists($config//appconf:relation[@xml:id=$object-type])
 
-let $result := 
-    if ($is-object and $show eq 'compact')
-    then edwebapi:get-object-list($app-target, $object-type, false(), $cache)
-    else if ($is-object and $search-query||"" != "")
-    then edwebapi:get-object-list-with-search(
-            $app-target, 
-            $object-type, 
-            ".", 
-            $kwic-width, 
-            $search-query,
-            $search-type,
-            $slop
-        )
-    else if ($is-object) 
-    then edwebapi:get-object-list($app-target, $object-type, true(), $cache)
+let $result :=
+    if ($is-object)
+    then
+        let $with-filters :=
+            if ($show eq 'compact')
+            then false()
+            else true()
+        return 
+            if ($search-query||"" != "")
+            then edwebapi:get-object-list-with-search(
+                $app-target, $object-type, $with-filters, $cache,
+                ".", $kwic-width, $search-query, $search-type, $slop
+            )
+            else edwebapi:get-object-list($app-target, $object-type, $with-filters, $cache)
     else if ($is-relation)
     then
         if ($show = ("", "list", "full"))
