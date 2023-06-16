@@ -869,7 +869,7 @@ declare function edwebapi:get-object-list(
 };
 
 declare function edwebapi:get-object-list-with-search(
-    $object-list as map(*),
+    (: $object-list as map(*), :)
     $app-target as xs:string,
     $object-type as xs:string,
     $search-xpath as xs:string?,
@@ -879,6 +879,9 @@ declare function edwebapi:get-object-list-with-search(
     $slop as xs:string?
 ) as map(*)
 {
+    let $with-filters := true()
+    let $cache := true()
+
     let $config := edwebapi:get-config($app-target)
     let $object-type := string($object-type)
     let $object-def := $config//appconf:object[@xml:id=$object-type]
@@ -888,10 +891,43 @@ declare function edwebapi:get-object-list-with-search(
         let $namespace-uri := $ns/string()
         return util:declare-namespace($prefix, $namespace-uri)
     let $objects-xml := edwebapi:get-objects($app-target, $object-type)
-    let $kwic-width := 
-        if ($kwic-width||"" = "")
-        then "30"
-        else $kwic-width
+
+    let $relations :=
+            map:merge((
+                if (not($with-filters))
+                then ()
+                else (
+                for $f in $object-def/appconf:filters/appconf:filter[@type='relation']
+                let $rel-type-name := $f/appconf:relation/@id/string()
+                return
+                map:entry(
+                    $rel-type-name,
+                    let $rel-perspective := $f/appconf:relation/@as/string()
+                    let $rel-target :=
+                        switch($rel-perspective)
+                        case "subject" return "object"
+                        case "object" return "subject"
+                        default return
+                            error(xs:QName("edwebapi:get-object-list-002"),
+                                "Invalid configuration parameter value, only 'subject' or 'object' allowed."
+                            )
+                    for $r in edwebapi:get-relation-list($app-target, $rel-type-name, false(), $cache)?list?*
+                    return map:entry(
+                        $r?($rel-perspective),
+                        switch($f/appconf:label/string())
+                        case "predicate" return $r?predicate
+                        case "id" return $r?($rel-target)
+                        case "id+predicate"
+                        return $r?($rel-target)||"+"||$r?predicate
+                        default return
+                            error(xs:QName("edwebapi:get-object-list-003"),
+                                "Invalid configuration parameter value, only 'id', 'predicate', and 'id+predicate' allowed."
+                            )
+                    )
+                ))
+            ))
+
+    (: NEUE SUCHE :)
     let $search-xpath :=
         if ($search-xpath eq ".")
         then "("||string-join($object-def/appconf:lucene/appconf:text/@qname/string(), "|")||")"
@@ -905,26 +941,91 @@ declare function edwebapi:get-object-list-with-search(
             return
                 util:eval("$objects-xml[ft:query(.//"||$search-xpath||", $query)]")
         else $objects-xml
-    let $object-id := $object-def/appconf:item/appconf:id/string()
-    let $list := $object-list?list
-    let $query-function := ".//"||$search-xpath||"[ft:query(., $query)]"  
-    let $list :=
+
+    let $objects :=
         for $object in $objects-xml
-        let $id := string(util:eval-inline($object,$object-id))
-        let $object-map := $list?($id)
-        let $search-score := 
-            if ($search-xpath||$search-query||"" != "")
-            then ft:score($object)
-            else 0.0
-        let $search-hits := 
-            if ($search-xpath||$search-query||"" != "")
-            then util:eval-inline($object, $query-function)
-            else ()
+        let $object-map := edwebapi:eval-base-data-for-object($object-def, $object)
+        let $filter-map := edwebapi:eval-filters-for-object($object-def, $object-map, $object, $relations)
         return
             map:entry(
-                $id,
-                map:merge ((
+                $object-map?id,
+                map:merge((
                     $object-map,
+                    $filter-map,
+
+                    (: NEUE SUCHE :)
+            if ($search-xpath||$search-query||"" != "")
+                    then map:entry("score", ft:score($object))
+                    else (),
+                    if ($search-xpath||$search-query||"" != "" and $kwic-width != "0")
+                    then
+                        edwebapi:eval-search-results-for-object($search-query,$search-xpath,$search-type,$slop,$kwic-width,$query,$object)
+            else ()
+                ))
+            )
+
+    let $filter :=
+        map:merge((
+            map:entry(
+                "id",
+                map:merge((
+                        map:entry("id", "id"),
+                        map:entry("name", "ID"),
+                        map:entry("n", 0),
+                        map:entry("type", "id"),
+                        map:entry("depends", ""),
+                        map:entry("xpath", $object-def/appconf:item/appconf:id),
+                        map:entry(
+                            "label-function", "function($string) { $string }"
+                        )
+                ))
+            ),
+            for $f at $pos in $object-def/appconf:filters/appconf:filter
+            let $key := $f/@xml:id/string()
+        return
+            map:entry(
+                    $key, 
+                    map:merge((
+                        map:entry("id", $key),
+                        map:entry("name", $f/appconf:name/string()),
+                        map:entry("n", $pos),
+                        map:entry("type", $f/appconf:type/string()),
+                        map:entry("depends", $f/@depends/string()),
+                        map:entry("xpath", $f/appconf:xpath/string()),
+                        map:entry(
+                            "label-function", 
+                            $f/appconf:label-function[@type='xquery']/normalize-space()
+                        ),
+                        if (not($f/appconf:type/string() = ("id", "string")))
+                        then
+                            map:entry("values", array { map:merge(( $objects ))?*?("filter")?($key)?* => distinct-values() => functx:sort() } )
+                        else ()
+                    ))
+                )
+        ))
+
+    let $count := count($objects-xml)
+
+    let $map :=
+        map:merge((
+            map:entry("date-time", current-dateTime()),
+            map:entry("type", "objects"),
+            map:entry("filter", $filter),
+            map:entry("results-found", $count),
+            map:entry("list", map:merge(( $objects )) )
+        ))
+    return $map
+};
+
+declare function edwebapi:eval-search-results-for-object(
+    $search-query as xs:string?,
+    $search-xpath as xs:string,
+    $search-type as xs:string?,
+    $slop as xs:string?,
+    $kwic-width as xs:string?,
+    $query as xs:string,
+    $object as node()*
+){
                     map:entry(
                         "search-results",
                         if ($search-type = 'distance')
@@ -945,6 +1046,13 @@ declare function edwebapi:get-object-list-with-search(
                                     map:entry("keyword-2", functx:substring-after-last($m-1, " "))
                                 ))
                         else
+        let $kwic-width :=
+            if ($kwic-width||"" = "")
+            then "30"
+            else $kwic-width
+        let $query-function := ".//"||$search-xpath||"[ft:query(., $query)]"
+        let $search-hits := util:eval-inline($object, $query-function)
+        return
                         for $hit in $search-hits
                         let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
                         (: TODO delete following line? :)
@@ -956,14 +1064,7 @@ declare function edwebapi:get-object-list-with-search(
                                 map:entry("context-following", $kwic[$pos]/span[@class='following']/string()),
                                 map:entry("score", ft:score($hit))
                             ))
-                    ),
-                    map:entry("score", $search-score)
-                ))
             )
-    let $list := map:merge($list)
-    let $object-list :=
-        map:put($object-list, "list", $list)
-    return $object-list
 };
 
 declare function local:get-matches($string as xs:string?, $regex as xs:string) as xs:string* {
@@ -1047,10 +1148,10 @@ declare function edwebapi:get-search-results(
         let $search-xpath := $target/@xpath/string()
 
         (: Get object list with search :)
-        let $object-list := edwebapi:get-object-list($app-target, $object-type, true(), $cache)
+        (: let $object-list := edwebapi:get-object-list($app-target, $object-type, true(), $cache) :)
         return 
             edwebapi:get-object-list-with-search(
-                $object-list, 
+                (: $object-list,  :)
                 $app-target, 
                 $object-type, 
                 $search-xpath, 

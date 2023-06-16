@@ -55,6 +55,16 @@ let $is-relation := exists($config//appconf:relation[@xml:id=$object-type])
 let $result := 
     if ($is-object and $show eq 'compact')
     then edwebapi:get-object-list($app-target, $object-type, false(), $cache)
+    else if ($is-object and $search-query||"" != "")
+    then edwebapi:get-object-list-with-search(
+            $app-target, 
+            $object-type, 
+            ".", 
+            $kwic-width, 
+            $search-query,
+            $search-type,
+            $slop
+        )
     else if ($is-object) 
     then edwebapi:get-object-list($app-target, $object-type, true(), $cache)
     else if ($is-relation)
@@ -72,20 +82,6 @@ return
             else if ($show eq 'all') 
             then map:merge(())
             else map:merge(())
-        let $result := 
-            if ($search-query||"" != "")
-            then 
-                edwebapi:get-object-list-with-search(
-                    $result, 
-                    $app-target, 
-                    $object-type, 
-                    ".", 
-                    $kwic-width, 
-                    $search-query,
-                    $search-type,
-                    $slop
-                )
-            else $result
         let $array := $result?list?*
         let $array := if ($order||"" != "") then edwebapi:order-items($array, $order, $order-modifier) else $array
         let $array := edwebapi:filter-list($array, $result?filter, $filter-params)

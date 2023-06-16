@@ -111,7 +111,7 @@ Uses the the defined search routines and shows the results ordered by score:
 ### 6.1 GET-Parameters
 
 - `q` the query string to be searched for
-- optional `kwic-width` parameter defines the range of characters showed the kwic (key word in context) results.
+- optional `kwic-width` parameter defines the range of characters showed the kwic (key word in context) results. If set to `0` no detailed search-results are shown, which increases the performance.
 - optional `limit` defines how many objects for searching are retrieved, see above [List of objects](#2-list-of-objects-or-relations).
 - optional `type` the type of query. Possible values are:
   - `regex` for a query using regular expressions
