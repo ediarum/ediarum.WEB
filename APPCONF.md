@@ -10,6 +10,7 @@
     - [Label property](#label-property)
     - [ID property](#id-property)
     - [Relation property](#relation-property)
+    - [JSON Property](#json-property)
   - [3.3 Views / XSLTs](#33-views--xslts)
     - [Base information](#base-information-1)
   - [3.4 Parts and reference points](#34-parts-and-reference-points)
@@ -94,7 +95,7 @@ The basic information for an object type defines where to find the objects in th
 - `item/root` QName expression of the root element of every object. It only must contain a qualified name, e.g. `tei:TEI`.
 - `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as objects.
 - `item/id` XPath expression where to find the ID of an object. This is also used as a ID property (see below).
-- `label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one node as parameter: `function($node) { ... }`.
+- `item/label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one node as parameter: `function($node) { ... }`.
 
 ```xml
 <object xml:id="personen">
@@ -108,6 +109,31 @@ The basic information for an object type defines where to find the objects in th
         <label type="xpath">.//(tei:head[@type='entry']/tei:persName | tei:div[@subtype="otherNames"]//tei:p)/normalize-space()</label>
     </item>
     ...
+</object>
+```
+
+It is also possible to parse a JSON file instead of XML nodes. The JSON file are not indexed, so it doesn't support searches. For this use the following definitions:
+
+- `object/@xml:id` ID of the object type.
+- `name` name of the object type. Can be used in the frontend.
+- `json-file` a relative path to the json file containing all objects.
+- `item/id` with `@type="json"` a map expression where to find the ID of an object. This is also used as a ID property (see below). Due to the use of ID in the URL all `:` and `/` in the ID are replaced with `-` resp. `/`.
+- `item/label` with `@type="json"` a map expression to define the label of the object.
+- optional `item/label-function` with `@type="xquery"` a XQuery function which can manipulate the property values further. It receives always one string: `function($string) { ... }`.
+
+*Map expressions are the following: `.` for the whole map; `key` or `key?subkey` for single entries; `*` for all entries*
+
+```xml
+ <object xml:id="persons">
+    <name>Personen</name>
+    <json-file>/Register/Personen.json</json-file>
+    <item>
+        <id type="json">PersonID</id>
+        <label type="json">.</label>
+        <label-function type="xquery">
+            function($map) { string-join(($map?forename?*?eng, $map?surname?*?eng),' ') }
+        </label-function>
+    </item>
 </object>
 ```
 
@@ -157,9 +183,19 @@ Example:
 </filter>
 ```
 
+Or for a JSON file:
+
+```xml
+<filter xml:id="forename-eng">
+    <name>Name</name>
+    <type>string</type>
+    <json>forename?*?eng</json>
+</filter>
+```
+
 #### XPath Property
 
-- `xpath` defines a XPath expression to get the property value.
+- `xpath` defines a XPath expression to get the property value. Doesn't work with JSON files.
 
 Example:
 
@@ -176,7 +212,7 @@ Example:
 
 #### Label property
 
-- `root/@type` must be equal to `label`.
+- `root/@type` must be equal to `label`. Doesn't work with JSON files.
 
 Example:
 
@@ -193,7 +229,7 @@ Example:
 
 #### ID property
 
-- `type` must be equal to `id`.
+- `type` must be equal to `id`. Doesn't work with JSON files.
 
 Example:
 
@@ -210,7 +246,7 @@ Example:
 
 #### Relation property
 
-- `filter/@type` must be equal to `relation`.
+- `filter/@type` must be equal to `relation`. Doesn't work with JSON files.
 - `relation/@id` the ID of the relation definition.
 - `relation/@as` defines if the current item is defined as 'object' or as 'subject' of the relation.
 - `label` defines which should be used as label. Possible values are: 'id', 'predicate', and 'id+predicate'.
@@ -225,6 +261,21 @@ Example:
     <label>predicate</label>
     <label-function type="xquery">
         function($string) {$string}
+    </label-function>
+</filter>
+```
+
+#### JSON Property
+
+- for JSON objects use `json` the map expression where to find the property values.
+
+```xml
+<filter xml:id="name-eng">
+    <name>Name</name>
+    <type>string</type>
+    <json>forename?eng</json>
+    <label-function type="xquery">
+        function($map) { string-join(($map?forename, $map?surname), " ") }
     </label-function>
 </filter>
 ```
@@ -339,7 +390,7 @@ Reference an TEI document by pagebreaks and linebreaks:
 
 ### 3.5 Search index
 
-For each object type it is possible to define an search index.
+For each object type it is possible to define an search index. For objects from JSON files searches are not supported.
 
 Example, where to define an index:
 
@@ -483,7 +534,7 @@ The parameter are the following:
 
 ## 5. Definition of a search routine
 
-It is possible to define search routines which can search within multiple object types. All objects with hits are returned ordered by the search score, see [http://exist-db.org/exist/apps/doc/lucene.xml#query](http://exist-db.org/exist/apps/doc/lucene.xml#query).
+It is possible to define search routines which can search within multiple object types. All objects with hits are returned ordered by the search score, see [http://exist-db.org/exist/apps/doc/lucene.xml#query](http://exist-db.org/exist/apps/doc/lucene.xml#query). Searches don't work with objects from JSON files.
 
 ```xml
 <config>

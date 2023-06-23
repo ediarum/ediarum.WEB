@@ -338,6 +338,9 @@ components:
             type: array
             items:
               type: string
+        json:
+          type: object
+          description: the original json object
         object-type:
           type: string
           description: type of object
@@ -515,7 +518,7 @@ components:
     searchParam:
       name: search
       in: query
-      description: Query expression to search within the object. With `distance` search it must contains a `~` to separate the two regular expressions.
+      description: Query expression to search within the object. With `distance` search it must contains a `~` to separate the two regular expressions. For better performance set `kwic-width` to `0`. Searches don't work with JSON objects.
       schema:
         type: string
     searchTypeParam:
@@ -552,7 +555,7 @@ components:
     kwicWidthParam:
       name: kwic-width
       in: query
-      description: The range of characters shown before and after the match in the hit.
+      description: The range of characters shown before and after the match in the hit. If set to `0` no context of the search result is shown.
       schema:
         type: integer
       example: 20
