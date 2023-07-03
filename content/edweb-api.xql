@@ -506,7 +506,7 @@ declare function edwebapi:get-object-with-search(
     $object-id as xs:string,
     $part as xs:string?,
     $kwic-width as xs:string?,
-    $search-xpath as xs:string,
+    $search-xpath as xs:string?,
     $search-query as xs:string,
     $search-type as xs:string?,
     $slop as xs:string?
@@ -521,20 +521,23 @@ declare function edwebapi:get-object-with-search(
         if ($kwic-width||"" = "")
         then "30"
         else $kwic-width
-    let $search-xpath :=
-        if ($search-xpath eq ".")
-        then "("||string-join($object-def/appconf:lucene/appconf:text/@qname/string(), "|")||")"
-        else $search-xpath
 
     let $query := edwebapi:build-search-query($search-query, $search-type, $slop)
 
-    let $query-function := ".[.//"||$search-xpath||"[ft:query(., $query)]]"
+    let $query-function :=
+        if ($search-xpath eq ".")
+        then ".[ft:query("||
+                string-join($object-def/appconf:lucene/appconf:text/@qname/string(), ",$query) or ft:query(")
+                ||",$query)]"
+        else if ($search-xpath||"" != "")
+        then ".[ft:query("||$search-xpath||", $query)]"
+        else ".[ft:query(., $query)]"
     let $search-score :=
-        if ($search-xpath||$search-query||"" != "")
+        if ($search-query||"" != "")
         then ft:score($xml)
         else 0.0
     let $search-hits :=
-        if ($search-xpath||$search-query||"" != "")
+        if ($search-query||"" != "")
         then
             if ($search-type = 'distance' or $search-type = 'distance-all-matches')
             then ()
@@ -948,24 +951,28 @@ declare function edwebapi:get-object-list-with-search(
             ))
 
     (: SUCHE :)
-    let $search-xpath :=
-        if ($search-xpath eq ".")
-        then "("||string-join($object-def/appconf:lucene/appconf:text/@qname/string(), "|")||")"
-        else $search-xpath
     let $query :=
-        if ($search-xpath||$search-query||"" != "")
+        if ($search-query||"" != "")
         then edwebapi:build-search-query($search-query, $search-type, $slop)
         else ()
     let $kwic-width :=
         if ($kwic-width||"" = "")
         then "30"
         else $kwic-width
+    let $query-function :=
+        if ($search-xpath eq ".")
+        then ".[ft:query("||
+                string-join($object-def/appconf:lucene/appconf:text/@qname/string(), ",$query) or ft:query(")
+                ||",$query)]"
+        else if ($search-xpath||"" != "")
+        then ".[ft:query("||$search-xpath||", $query)]"
+        else ".[ft:query(., $query)]"
     let $objects-xml-or-json :=
-        if ($search-xpath||$search-query||"" != "" and not($is-json-file))
+        if (exists($query) and not($is-json-file))
         then
             let $init-indices := local:init-search-indices($app-target)
             return
-                util:eval("$objects-xml-or-json[ft:query(.//"||$search-xpath||", $query)]")
+                $objects-xml-or-json/util:eval-inline(., $query-function)
         else $objects-xml-or-json
 
     let $objects :=
@@ -980,7 +987,7 @@ declare function edwebapi:get-object-list-with-search(
                     $filter-map,
 
                     (: SUCHE :)
-                    if ($search-xpath||$search-query||"" != "" and not($is-json-file))
+                    if (exists($query) and not($is-json-file))
                     then map:entry("score", ft:score($object))
                     else (),
                     if ($search-xpath||$search-query||"" != "" and $kwic-width != "0" and not($is-json-file))
@@ -1078,13 +1085,12 @@ declare function edwebapi:eval-search-results-for-object(
         return
         for $hit in $search-hits
         let $kwic := kwic:summarize($hit, <config width="{$kwic-width}"/>)
-        (: TODO delete following line? :)
-        for $item at $pos in $kwic
+        for $item in $kwic
         return
             map:merge ((
-                map:entry("context-previous", $kwic[$pos]/span[@class='previous']/string()),
-                map:entry("keyword", $kwic[$pos]/span[@class='hi']/string()),
-                map:entry("context-following", $kwic[$pos]/span[@class='following']/string()),
+                map:entry("context-previous", $item/span[@class='previous']/string()),
+                map:entry("keyword", $item/span[@class='hi']/string()),
+                map:entry("context-following", $item/span[@class='following']/string()),
                 map:entry("score", ft:score($hit))
             ))
     )

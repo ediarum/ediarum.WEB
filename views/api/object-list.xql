@@ -32,6 +32,11 @@ let $limit := request:get-parameter("limit",request:get-attribute("limit"))
 
 let $search-query := request:get-parameter("search",request:get-attribute("search"))
 let $kwic-width := request:get-parameter("kwic-width",request:get-attribute("kwic-width"))
+let $kwic-width :=
+    if ($kwic-width||"" = "")
+    then "30"
+    else $kwic-width
+
 let $search-type := request:get-parameter("search-type",request:get-attribute("search-type"))
 let $slop := request:get-parameter("slop",request:get-attribute("slop"))
 
@@ -63,7 +68,7 @@ let $result :=
             if ($search-query||"" != "")
             then edwebapi:get-object-list-with-search(
                 $app-target, $object-type, $with-filters, $cache,
-                ".", $kwic-width, $search-query, $search-type, $slop
+                (), $kwic-width, $search-query, $search-type, $slop
             )
             else edwebapi:get-object-list($app-target, $object-type, $with-filters, $cache)
     else if ($is-relation)
