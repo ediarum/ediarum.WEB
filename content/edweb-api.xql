@@ -985,14 +985,10 @@ declare function edwebapi:get-object-list-with-search(
                 map:merge((
                     $object-map,
                     $filter-map,
-
+                    map:entry("xml", $object),
                     (: SUCHE :)
                     if (exists($query) and not($is-json-file))
                     then map:entry("score", ft:score($object))
-                    else (),
-                    if ($search-xpath||$search-query||"" != "" and $kwic-width != "0" and not($is-json-file))
-                    then
-                        edwebapi:eval-search-results-for-object($search-query,$search-xpath,$search-type,$slop,$kwic-width,$query,$object)
                     else ()
                 ))
             )
@@ -1050,13 +1046,39 @@ declare function edwebapi:get-object-list-with-search(
     return $map
 };
 
-declare function edwebapi:eval-search-results-for-object(
+declare function edwebapi:eval-search-results-for-object-list(
+    $app-target as xs:string,
+    $object-type as xs:string,
     $search-query as xs:string?,
-    $search-xpath as xs:string,
+    $search-xpath as xs:string?,
     $search-type as xs:string?,
     $slop as xs:string?,
     $kwic-width as xs:string?,
-    $query as xs:string,
+    $array as map(*)*
+) as map(*)*
+{
+    for $object-map in $array
+    return
+        map:merge((
+            $object-map,
+
+            (: SUCHE :)
+            if ($search-query||"" != "" and $kwic-width != "0")
+            then
+                let $object := $object-map?xml
+                return edwebapi:eval-search-results-for-object($app-target, $object-type, $search-query,$search-xpath,$search-type,$slop,$kwic-width,$object)
+            else ()
+        ))
+};
+
+declare function edwebapi:eval-search-results-for-object(
+    $app-target as xs:string,
+    $object-type as xs:string,
+    $search-query as xs:string?,
+    $search-xpath as xs:string?,
+    $search-type as xs:string?,
+    $slop as xs:string?,
+    $kwic-width as xs:string?,
     $object as node()*
 ) as map(*)
 {
@@ -1080,7 +1102,20 @@ declare function edwebapi:eval-search-results-for-object(
                     map:entry("keyword-2", functx:substring-after-last($m-1, " "))
                 ))
         else
-        let $query-function := ".//"||$search-xpath||"[ft:query(., $query)]"
+
+        let $object-def := edwebapi:get-config($app-target)//appconf:object[@xml:id=$object-type]
+        let $query :=
+            if ($search-query||"" != "")
+            then edwebapi:build-search-query($search-query, $search-type, $slop)
+            else ()
+        let $query-function :=
+            if ($search-xpath eq ".")
+            then ".[ft:query("||
+                string-join($object-def/appconf:lucene/appconf:text/@qname/string(), ",$query) or ft:query(")
+                ||",$query)]"
+            else if ($search-xpath||"" != "")
+            then ".[ft:query("||$search-xpath||", $query)]"
+            else ".[ft:query(., $query)]"
         let $search-hits := util:eval-inline($object, $query-function)
         return
         for $hit in $search-hits

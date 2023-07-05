@@ -89,12 +89,14 @@ return
         let $array := $result?list?*
         let $array := if ($order||"" != "") then edwebapi:order-items($array, $order, $order-modifier) else $array
         let $array := edwebapi:filter-list($array, $result?filter, $filter-params)
-        return 
-            if ($page) 
+        let $array :=
+            if ($page)
             then subsequence($array, (($page - 1) * $range) + 1, $range )
-            else if ($from) 
+            else if ($from)
             then subsequence($array, $from, $range )
             else $array
+        let $array := edwebapi:eval-search-results-for-object-list($app-target, $object-type, $search-query,(),$search-type,$slop,$kwic-width,$array)
+        return $array ! map:remove(., 'xml')
     else if ($is-object and ($show eq 'filter')) 
     then $result?filter
     (: Relations :)
