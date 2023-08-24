@@ -50,7 +50,7 @@ declare function edweb:add-assets(
     ,
     let $scripts := 
         (
-            "jquery/jquery-1.11.3.min.js",
+            "jquery/jquery-3.7.0.min.js",
             "jquery/jquery-ui-1.10.3.custom.js",
             "prettify/prettify.js",
             "uitotop/jquery.ui.totop.js",
