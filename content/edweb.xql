@@ -974,10 +974,12 @@ declare function edweb:load-relations-for-subject-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;subject="||$id)
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;subject="||$id)
+    let $all-objects := edwebcontroller:api-get("/api?id-type=complete")
     let $items :=
         for $r in $relations
-        let $object-map := $r?object
+        let $object-id := $r?object
+        let $object-map := $all-objects?($object-id)
         order by $object-map?label
         return
             map:merge((
@@ -1046,10 +1048,12 @@ declare function edweb:load-relations-for-object-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;object="||$id)
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;object="||$id)
+    let $all-objects := edwebcontroller:api-get("/api?id-type=complete")
     let $items :=
         for $r in $relations
-        let $subject-map := $r?subject
+        let $subject-id := $r?subject
+        let $subject-map := $all-objects?($subject-id)
         order by $subject-map?label
         return
             map:merge((

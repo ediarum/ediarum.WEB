@@ -193,7 +193,7 @@ declare function edwebapi:get-all(
     let $map := map:merge((
         map:entry("date-time", current-dateTime()),
         for $object-type in edwebapi:get-config($app-target)//appconf:object/@xml:id
-        return edwebapi:get-object-list($app-target, $object-type, $with-filters, $cache)?list
+        return edwebapi:get-object-list($app-target, $object-type, $with-filters, false(), $cache)?list
     ))
 
     let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
@@ -871,14 +871,15 @@ declare function edwebapi:get-object-list(
     $app-target as xs:string,
     $object-type as xs:string,
     $with-filters as xs:boolean,
+    $with-xml as xs:boolean,
     $cache as xs:string?
 ) as map(*) 
 {
-    let $cache-file-name := translate("get-object-list-"||$object-type||"-"||$with-filters||".json", '/','__')
+    let $cache-file-name := translate("get-object-list-"||$object-type||"-"||$with-filters||"-"||$with-xml||".json", '/','__')
     let $cache-map := edwebapi:map-from-cache($app-target, $cache-file-name, $cache)
     return if (exists($cache-map)) then $cache-map else
 
-    let $map := edwebapi:get-object-list-with-search($app-target, $object-type, $with-filters, $cache, (), (), (), (), ())
+    let $map := edwebapi:get-object-list-with-search($app-target, $object-type, $with-filters, $with-xml, $cache, (), (), (), (), ())
   
     let $store := edwebapi:save-to-cache($app-target, $cache-file-name, $map, $cache)
     return $map
@@ -889,6 +890,7 @@ declare function edwebapi:get-object-list-with-search(
     $app-target as xs:string,
     $object-type as xs:string,
     $with-filters as xs:boolean,
+    $with-xml as xs:boolean,
     $cache as xs:string?,
     $search-xpath as xs:string?,
     $kwic-width as xs:string?,
@@ -985,7 +987,9 @@ declare function edwebapi:get-object-list-with-search(
                 map:merge((
                     $object-map,
                     $filter-map,
-                    map:entry("xml", $object),
+                    if ($with-xml) 
+                    then map:entry("xml", $object)
+                    else (),
                     (: SUCHE :)
                     if (exists($query) and not($is-json-file))
                     then map:entry("score", ft:score($object))
@@ -1216,6 +1220,7 @@ declare function edwebapi:get-search-results(
                 $app-target,
                 $object-type,
                 true(),
+                false(),
                 $cache,
                 $search-xpath,
                 $kwic-width,
@@ -1370,7 +1375,7 @@ declare function edwebapi:get-relation-list(
             return util:declare-namespace($prefix, $namespace-uri)
 
     let $objects :=
-        let $map := edwebapi:get-object-list($app-target, $object-type, false(), $cache)
+        let $map := edwebapi:get-object-list($app-target, $object-type, false(), false(), $cache)
         return
         map:merge ((
             if ($relation-type/appconf:object-condition/@type = "resource")
@@ -1386,7 +1391,7 @@ declare function edwebapi:get-relation-list(
         ))
 
     let $subjects :=
-        let $map := edwebapi:get-object-list($app-target, $subject-type, false(), $cache)
+        let $map := edwebapi:get-object-list($app-target, $subject-type, false(), false(), $cache)
         return
         map:merge ((
             if ($relation-type/appconf:subject-condition/@type = "resource")

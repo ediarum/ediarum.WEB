@@ -89,7 +89,7 @@ paths:
               - compact # show all objects but in compact form, i.e. without properties
               - filter # show the filter definitions
               - list # show objects matching the filter criteria
-              - full # show relations with full objects in 'subject' and 'object'
+              - full # show relations with full objects in 'subject' and 'object' and include xml in output; Warning: due to large JSON-output, this can lead to memory problems.
         - $ref: "#/components/parameters/slopParam"
       responses:
         '200':

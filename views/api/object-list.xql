@@ -5,7 +5,7 @@ import module namespace edwebapi="http://www.bbaw.de/telota/software/ediarum/web
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
 declare namespace output = "http://www.w3.org/2010/xslt-xquery-serialization";
 declare namespace tei = "http://www.tei-c.org/ns/1.0";
-            
+
 declare option output:method "json";
 declare option output:media-type "application/json";
 
@@ -17,7 +17,7 @@ declare option output:media-type "application/json";
  :)
 declare function local:init-params(
     $param-names as xs:string*
-) as map() 
+) as map()
 {
     map:merge((
         for $p in $param-names
@@ -64,13 +64,17 @@ let $result :=
             if ($show eq 'compact')
             then false()
             else true()
-        return 
+        let $with-xml :=
+            if ($show eq 'full')
+            then true()
+            else false()
+        return
             if ($search-query||"" != "")
             then edwebapi:get-object-list-with-search(
-                $app-target, $object-type, $with-filters, $cache,
+                $app-target, $object-type, $with-filters, $with-xml, $cache,
                 (), $kwic-width, $search-query, $search-type, $slop
             )
-            else edwebapi:get-object-list($app-target, $object-type, $with-filters, $cache)
+            else edwebapi:get-object-list($app-target, $object-type, $with-filters, $with-xml, $cache)
     else if ($is-relation)
     then
         if ($show = ("", "list", "full"))
@@ -78,12 +82,12 @@ let $result :=
         else error(xs:QName("edwebapi:object-list-001"), "Parameter 'show' must be one of 'list', 'full' or ''.")
     else error(xs:QName("edwebapi:object-list-002"),$object-type||" isn't defined for '"||$app-target||"'.")
 return
-    if ($is-object and ($show eq 'list' or $show eq 'all' or $show eq 'compact')) 
+    if ($is-object and ($show eq 'list' or $show eq 'all' or $show eq 'compact'))
     then
-        let $filter-params := 
-            if ($show eq 'list') 
+        let $filter-params :=
+            if ($show eq 'list')
             then local:init-params((map:keys($result?filter)))
-            else if ($show eq 'all') 
+            else if ($show eq 'all')
             then map:merge(())
             else map:merge(())
         let $array := $result?list?*
@@ -97,7 +101,7 @@ return
             else $array
         let $array := edwebapi:eval-search-results-for-object-list($app-target, $object-type, $search-query,(),$search-type,$slop,$kwic-width,$array)
         return $array ! map:remove(., 'xml')
-    else if ($is-object and ($show eq 'filter')) 
+    else if ($is-object and ($show eq 'filter'))
     then $result?filter
     (: Relations :)
     else if ($show eq 'list' and $subject||"" != "")
