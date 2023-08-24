@@ -1618,7 +1618,7 @@ declare function local:init-search-indices(
                 ,
                 <field name="{$object-type}---absolute-resource-id" expression="util:absolute-resource-id(.)"/>
                 ,
-                    for $filter in $object-def/appconf:filters/appconf:filter[not(appconf:root/@type='label')]
+                    for $filter in $object-def/appconf:filters/appconf:filter[not(appconf:root/@type='label') and not(@type='relation')]
                     let $expression := 
                         if ($filter/appconf:label-function[@type='xquery'])
                         then
