@@ -874,7 +874,7 @@ declare %templates:wrap function edweb:load-objects(
                 )
         ))
 
-    let $filter-params := edweb:params-load((map:keys($filters)))
+    let $filter-params := edweb:params-load((map:keys($filters),"search","search-type"))
     let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
     let $filtered-objects :=
         if (edweb:params-insert($filter-params) != "")
