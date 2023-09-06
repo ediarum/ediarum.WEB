@@ -963,18 +963,18 @@ declare function edwebapi:get-object-list-with-search(
         else $kwic-width
     let $query-function :=
         if ($search-xpath eq ".")
-        then ".[ft:query("||
+        then "[ft:query("||
                 string-join($object-def/appconf:lucene/appconf:text/@qname/string(), ",$query) or ft:query(")
                 ||",$query)]"
         else if ($search-xpath||"" != "")
-        then ".[ft:query("||$search-xpath||", $query)]"
-        else ".[ft:query(., $query)]"
+        then "[ft:query("||$search-xpath||", $query)]"
+        else "[ft:query(., $query)]"
     let $objects-xml-or-json :=
         if (exists($query) and not($is-json-file))
         then
             let $init-indices := local:init-search-indices($app-target)
             return
-                $objects-xml-or-json/util:eval-inline(., $query-function)
+                util:eval("$objects-xml-or-json"||$query-function)
         else $objects-xml-or-json
 
     let $objects :=
