@@ -1334,7 +1334,11 @@ declare function edweb:params-get-page(
 declare function edweb:params-get-page-size(
 ) as xs:integer 
 {
-    request:get-parameter("ps", "50")
+    let $ps := request:get-parameter("ps", request:get-attribute("ps"))
+    return 
+        if ($ps||""="")
+        then "50"
+        else $ps
 };
 
 (:~
