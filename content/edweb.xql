@@ -190,9 +190,9 @@ declare function edweb:add-detail-link(
                                 parse-xml($label)
                             }
                             catch * {
-                                $xml
+                                $label
                             }
-                        else $xml
+                        else $label
                 }</span>
             </a>
         }
