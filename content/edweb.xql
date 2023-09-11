@@ -181,7 +181,19 @@ declare function edweb:add-detail-link(
     return
         try {
             <a href="$id/{$for}">
-                <span>{$link-list?($for)?label}</span>
+                <span>{
+                    let $label := $link-list?($for)?label
+                    return
+                        if (starts-with($label,'<'))
+                        then
+                            try {
+                                parse-xml($label)
+                            }
+                            catch * {
+                                $xml
+                            }
+                        else $xml
+                }</span>
             </a>
         }
         catch * {
