@@ -177,12 +177,12 @@ declare function edweb:add-detail-link(
     $for as xs:string
 )
 {
-    let $link-list := edwebcontroller:api-get("/api?id-type=all")
-    return
-        try {
+    try {
+        let $object-map := edwebcontroller:api-get("/api?id="||$for)
+        return
             <a href="$id/{$for}">
                 <span>{
-                    let $label := $link-list?($for)?label
+                    let $label := $object-map?label
                     return
                         if (starts-with($label,'<'))
                         then
@@ -195,10 +195,10 @@ declare function edweb:add-detail-link(
                         else $label
                 }</span>
             </a>
-        }
-        catch * {
-            $for
-        }
+    }
+    catch * {
+        $for
+    }
 };
 
 (:~ 
