@@ -990,11 +990,15 @@ declare function edweb:load-relations-for-subject-with-id(
 ) as map(*)
 {
     let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;subject="||$id)
-    let $all-objects := edwebcontroller:api-get("/api?id-type=complete")
+    let $objects-ids := $relations ! (.)?object
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $object-type := $appconf//appconf:relation[@xml:id=$relation]/@object/string()
+    let $all-objects := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;id="||string-join($objects-ids,";"))
     let $items :=
         for $r in $relations
         let $object-id := $r?object
-        let $object-map := $all-objects?($object-id)
+        let $object-map := $all-objects?*[?id = $object-id]
         order by $object-map?label
         return
             map:merge((
@@ -1064,11 +1068,15 @@ declare function edweb:load-relations-for-object-with-id(
 ) as map(*)
 {
     let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;object="||$id)
-    let $all-objects := edwebcontroller:api-get("/api?id-type=complete")
+    let $subjects-ids := $relations ! (.)?subject
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $subject-type := $appconf//appconf:relation[@xml:id=$relation]/@subject/string()
+    let $all-subjects := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;id="||string-join($subjects-ids,";"))
     let $items :=
         for $r in $relations
         let $subject-id := $r?subject
-        let $subject-map := $all-objects?($subject-id)
+        let $subject-map := $all-subjects?*[?id = $subject-id]
         order by $subject-map?label
         return
             map:merge((
