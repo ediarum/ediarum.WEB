@@ -313,7 +313,9 @@ declare function edweb:add-main-nav(
     $model as map(*)
 ) as node()*
 {
-    let $object-types := edwebcontroller:api-get("/api")//appconf:object
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $object-types := $appconf//appconf:object
     return
         for $object-type in $object-types
         let $id := $object-type/@xml:id/string()
@@ -713,6 +715,7 @@ declare %templates:wrap function edweb:load-current-object(
     $model as map(*)
 ) as map(*) 
 {
+    let $model := local:load($model, "/api")
     let $object-type := request:get-attribute("object-type")
     let $object-id :=
         if (request:get-attribute("find")||"" != "")
@@ -1187,7 +1190,8 @@ declare function edweb:view-expand-links(
         then 
             let $object := $link-list?($current-id)
             let $object-type := $object?object-type
-            let $id-types := edwebcontroller:api-get("/api")//appconf:object[@xml:id=$object-type]//appconf:filter[appconf:type="id"]/@xml:id/string()
+            let $appconf := edwebcontroller:api-get("/api")
+            let $id-types := $appconf//appconf:object[@xml:id=$object-type]//appconf:filter[appconf:type="id"]/@xml:id/string()
             let $ids := for $id-type in $id-types return $id-type||":"||$object?filter?($id-type)
             return
                 "?ref="||string-join(($current-id, $ids),'+')
