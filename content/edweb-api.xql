@@ -200,6 +200,21 @@ declare function edwebapi:get-all(
     return $map
 };
 
+declare function edwebapi:get-by-id(
+    $app-target as xs:string,
+    $id as xs:string,
+    $id-type as xs:string?
+) as map(*)
+{
+    if ($id-type||"" = "")
+    then
+        for $object-type in edwebapi:get-config($app-target)//appconf:object/@xml:id
+        return edwebapi:get-object-list($app-target, $object-type, true(), false(), ())?list?($id)
+    else
+        for $object-type in edwebapi:get-config($app-target)//appconf:object/@xml:id
+        return edwebapi:get-object-list($app-target, $object-type, true(), false(), ())?list?*[?filter?($id-type) = $id]
+};
+
 (:~
  : Retrieves the appconf.xml from the project app.
  :

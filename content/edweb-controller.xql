@@ -39,7 +39,7 @@ declare function local:api-routing(
 {
     let $f := function-lookup(xs:QName($function), 3)
     return (
-        if (request:get-parameter("id", request:get-attribute("id"))||"" = "all") 
+        if (request:get-parameter("id", request:get-attribute("id"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)
         else if (request:get-parameter("id-type", request:get-attribute("id-type"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)

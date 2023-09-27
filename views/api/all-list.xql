@@ -16,13 +16,10 @@ let $cache := request:get-parameter("cache", request:get-attribute("cache"))
 let $id := request:get-parameter("id", request:get-attribute("id"))
 let $id-type := request:get-parameter("id-type", request:get-attribute("id-type"))
 
-let $id-type :=
-    if ($id-type||"" = "")
-    then $id
-    else $id-type
-
 return
-    if ($id-type = "all")
+    if ($id||"" != "")
+    then edwebapi:get-by-id($app-target, $id, $id-type)
+    else if ($id-type = "all")
     then edwebapi:get-all($app-target, false(), $cache)
     else
     let $all-list := edwebapi:get-all($app-target, true(), $cache)
