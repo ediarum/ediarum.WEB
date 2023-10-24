@@ -10,13 +10,19 @@ telota@bbaw.de
 
 For more infomation about **ediarum** see www.ediarum.org.
 
-Lead Developer:
+Ediarum Core Team:
+
+* Nadine Arndt
+* Martin Fechner
+* Jan Wierzoch
+
+Lead Developer of ediarum.WEB:
 
 * Martin Fechner
 
-Thanks to: 
+Former supporters:
 
-* Theodor Costea for development support
+* Theodor Costea
 
 ## What does it do?
 
