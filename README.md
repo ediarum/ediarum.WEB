@@ -20,6 +20,8 @@ Lead Developer of ediarum.WEB:
 
 * Martin Fechner
 
+Thanks to https://github.com/Kolophonium0 for contributing!
+
 Former supporters:
 
 * Theodor Costea
@@ -47,7 +49,9 @@ The use and setup of **features** is documented at [FEATURES.md](FEATURES.md).
 
 An overview of the **libraries** is given at [LIBRARIES.md](LIBRARIES.md).
 
-## Development
+## Contributing
+
+Thank you for considering contributing to ediarum.WEB!
 
 To build a new xar package use Apache ANT (https://ant.apache.org/):
 
@@ -84,8 +88,8 @@ Font Awesome 4.6.3 by @davegandy - http://fontawesome.io - @fontawesome
 * Font: SIL OFL 1.1 (https://scripts.sil.org/OFL)
 * CSS: MIT License (https://opensource.org/licenses/MIT)
 
-### jQuery v1.11.3 
+### jQuery v3.7.0
 
-(c) 2005, 2015 jQuery Foundation, Inc. 
+(c) OpenJS Foundation and other contributors
 
 * jquery.org/license
