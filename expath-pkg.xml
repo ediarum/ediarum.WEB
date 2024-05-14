@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://expath.org/ns/pkg" name="http://www.bbaw.de/telota/software/ediarum/web/lib" abbrev="edweb" version="1.18.3" spec="1.0">
+<package xmlns="http://expath.org/ns/pkg" name="http://www.bbaw.de/telota/software/ediarum/web/lib" abbrev="edweb" version="2.4.3" spec="1.0">
     <title>ediarum.web</title>
     <dependency package="http://www.functx.com"/>
     <xquery>
@@ -13,5 +13,9 @@
     <xquery>
       <namespace>http://www.bbaw.de/telota/software/ediarum/web/controller</namespace>
       <file>edweb-controller.xql</file>
+    </xquery>
+    <xquery>
+      <namespace>http://www.bbaw.de/telota/software/ediarum/web/cache</namespace>
+      <file>edweb-cache.xql</file>
     </xquery>
 </package>

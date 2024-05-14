@@ -31,10 +31,7 @@ let $object-id := request:get-parameter("object-id", request:get-attribute("obje
 let $search-query := request:get-parameter("search", request:get-attribute("search"))
 let $search-type := request:get-parameter("search-type", request:get-attribute("search-type"))
 let $search-xpath := request:get-parameter("search-xpath", request:get-attribute("search-xpath"))
-let $search-xpath :=
-    if ($search-xpath||"" eq "")
-    then "."
-    else $search-xpath
+
 let $slop := request:get-parameter("slop", request:get-attribute("slop"))
 let $kwic-width := request:get-parameter("kwic-width", request:get-attribute("kwic-width"))
 
@@ -51,7 +48,7 @@ let $xml :=
     if ($view != "")
     then 
         let $view-params := local:init-params((tokenize($map?views?($view)?params,' ')))
-        return edwebapi:get-object-as($app-target, $object-type, $object-id, $view, $view-params)
+        return edwebapi:get-object-as($app-target, $map, $view, $view-params)
     else 
         $map?xml
 

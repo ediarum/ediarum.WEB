@@ -5,7 +5,7 @@ xquery version "3.1";
  :)
 module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
-import module namespace console="http://exist-db.org/xquery/console";
+(: import module namespace console="http://exist-db.org/xquery/console"; :)
 import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
@@ -39,7 +39,7 @@ declare function local:api-routing(
 {
     let $f := function-lookup(xs:QName($function), 3)
     return (
-        if (request:get-parameter("id", request:get-attribute("id"))||"" = "all") 
+        if (request:get-parameter("id", request:get-attribute("id"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)
         else if (request:get-parameter("id-type", request:get-attribute("id-type"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)
@@ -81,8 +81,8 @@ declare function edwebcontroller:api-get(
 ) as item()*
 {
     try {
-        console:log("api-get","Request: "||$api-path)
-        ,
+        (: console:log("api-get","Request: "||$api-path) :)
+        (: , :)
         let $store-attributes := 
             for $att in request:attribute-names()
             let $value := request:get-attribute($att)
@@ -709,7 +709,7 @@ function edwebcontroller:read-path-variables(
             return [$variable-pattern, $key]
         else ()
     let $matches := for $part at $pos in $path-regex-parts
-        let $path-tail := replace ($path, "^"||string-join(for $p in subsequence($path-regex-parts, 1, $pos -1) return $p(1)), "")
+        let $path-tail := replace ("X"||$path, "^X"||string-join(for $p in subsequence($path-regex-parts, 1, $pos -1) return $p(1)), "")
         let $match := functx:get-matches($path-tail, $part(1))[1]
         return <match>{$match}</match>
     let $params := for $p at $pos in $path-regex-parts return
@@ -756,6 +756,7 @@ declare function edwebcontroller:redirect-to-id(
     then (
        local:set-pass-through-false()
         ,
+        try {
         let $base-url := substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                 ||edwebcontroller:get-exist-controller()
         let $id := substring-after(edwebcontroller:get-exist-path(), $starts-with)
@@ -767,6 +768,14 @@ declare function edwebcontroller:redirect-to-id(
             <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
                 <redirect url="{$redirect}"/>
             </dispatch>
+        } catch * {
+            <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
+                <error-handler>
+                    <forward url="{edwebcontroller:get-exist-controller()}/views/static-pages/error-page.html" method="get"/>
+                    <forward url="{edwebcontroller:get-exist-controller()}/modules/view.xql"/>
+                </error-handler>
+            </dispatch>
+        }
     )
     else ()
 };

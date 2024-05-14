@@ -1,0 +1,19 @@
+abstract: "ediarum.WEB is an library for eXist-db. With the help of ediarum.WEB, developers can build an entire website or just a backend used for XML based digital editions. The different functions of the library support routing, api generation, and frontend templating."
+authors:
+  - given-names: Martin
+    family-names: Fechner
+    orcid: 'https://orcid.org/0000-0001-9233-0653'
+  - family-names: Arndt
+    given-names: Nadine
+    orcid: 'https://orcid.org/0000-0002-2257-7236'
+  - given-names: Jan
+    family-names: Wierzoch
+    orcid: 'https://orcid.org/0000-0002-6388-4064'
+cff-version: 1.2.0
+date-released: "2023-05-08"
+license: "LGPL-3.0-or-later"
+message: "If you use this software, please cite it using these metadata."
+repository-code: "https://github.com/ediarum/ediarum.WEB"
+title: ediarum.WEB
+type: software
+version: @VERSION@

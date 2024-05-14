@@ -8,7 +8,7 @@ module namespace edweb="http://www.bbaw.de/telota/software/ediarum/web/lib";
 import module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
 import module namespace templates="http://exist-db.org/xquery/html-templating";
-import module namespace console="http://exist-db.org/xquery/console";
+(: import module namespace console="http://exist-db.org/xquery/console"; :)
 import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
@@ -50,7 +50,7 @@ declare function edweb:add-assets(
     ,
     let $scripts := 
         (
-            "jquery/jquery-1.11.3.min.js",
+            "jquery/jquery-3.7.0.min.js",
             "jquery/jquery-ui-1.10.3.custom.js",
             "prettify/prettify.js",
             "uitotop/jquery.ui.totop.js",
@@ -107,7 +107,7 @@ declare function edweb:add-breadcrumb-items(
                     </li>
             else ()
 
-    let $c := console:log("loading", $model?all)
+    (: let $c := console:log("loading", $model?all) :)
     return
         <ol class="p-0 m-0 mr-auto breadcrumb">
             <li class="breadcrumb-item">
@@ -177,16 +177,28 @@ declare function edweb:add-detail-link(
     $for as xs:string
 )
 {
-    let $link-list := edwebcontroller:api-get("/api?id-type=all")
-    return
-        try {
+    try {
+        let $object-map := edwebcontroller:api-get("/api?id="||$for)
+        return
             <a href="$id/{$for}">
-                <span>{$link-list?($for)?label}</span>
+                <span>{
+                    let $label := $object-map?label
+                    return
+                        if (starts-with($label,'<'))
+                        then
+                            try {
+                                parse-xml($label)
+                            }
+                            catch * {
+                                $label
+                            }
+                        else $label
+                }</span>
             </a>
-        }
-        catch * {
-            $for
-        }
+    }
+    catch * {
+        $for
+    }
 };
 
 (:~ 
@@ -301,7 +313,9 @@ declare function edweb:add-main-nav(
     $model as map(*)
 ) as node()*
 {
-    let $object-types := edwebcontroller:api-get("/api")//appconf:object
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $object-types := $appconf//appconf:object
     return
         for $object-type in $object-types
         let $id := $object-type/@xml:id/string()
@@ -595,7 +609,7 @@ declare function edweb:insert-string(
     $node as node(), 
     $model as map(*), 
     $path as xs:string
-) as xs:string? 
+) as xs:string* 
 {
     local:template-get-string($model, $path)
 };
@@ -624,14 +638,18 @@ declare function edweb:insert-xml-string(
 
 
 declare function local:template-get-string(
-    $model as map(*), 
+    $model as map(*),
     $path as xs:string
-) as xs:string? 
-{ 
+) as xs:string*
+{
     if (contains($path, "?")) 
     then
-        let $model := $model?(substring-before($path, "?"))
+        let $model :=
+            if (substring-before($path,"?") = "*")
+            then $model?*
+            else $model?(substring-before($path, "?"))
         let $path := substring-after($path, "?")
+        for $model in $model
         return
             if ($model instance of array(*))
             then local:template-get-string-from-array($model, $path)            
@@ -642,7 +660,7 @@ declare function local:template-get-string(
 declare function local:template-get-string-from-array(
     $model as array(*), 
     $path as xs:string
-) as xs:string? 
+) as xs:string* 
 {
     if (contains($path, "?")) 
     then
@@ -652,6 +670,8 @@ declare function local:template-get-string-from-array(
             if ($model instance of array(*))
             then local:template-get-string-from-array($model, $path)            
             else local:template-get-string($model, $path)
+    else if (contains($path, "*")) 
+    then $model?*
     else $model?(xs:int($path))||""
 };
 
@@ -695,6 +715,7 @@ declare %templates:wrap function edweb:load-current-object(
     $model as map(*)
 ) as map(*) 
 {
+    let $model := local:load($model, "/api")
     let $object-type := request:get-attribute("object-type")
     let $object-id :=
         if (request:get-attribute("find")||"" != "")
@@ -868,7 +889,7 @@ declare %templates:wrap function edweb:load-objects(
                 )
         ))
 
-    let $filter-params := edweb:params-load((map:keys($filters)))
+    let $filter-params := edweb:params-load((map:keys($filters),"search","search-type"))
     let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=all&amp;order=label")
     let $filtered-objects :=
         if (edweb:params-insert($filter-params) != "")
@@ -968,10 +989,15 @@ declare function edweb:load-relations-for-subject-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;subject="||$id)
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;subject="||$id)
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $object-type := $appconf//appconf:relation[@xml:id=$relation]/@object/string()
+    let $all-objects := edwebcontroller:api-get("/api/"||$object-type||"?show=list")
     let $items :=
         for $r in $relations
-        let $object-map := $r?object
+        let $object-id := $r?object
+        let $object-map := $all-objects[?id = $object-id]
         order by $object-map?label
         return
             map:merge((
@@ -1040,10 +1066,15 @@ declare function edweb:load-relations-for-object-with-id(
     $id as xs:string
 ) as map(*)
 {
-    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=full&amp;object="||$id)
+    let $relations := edwebcontroller:api-get("/api/"||$relation||"?show=list&amp;object="||$id)
+    let $model := local:load($model, "/api")
+    let $appconf := $model?("/api")
+    let $subject-type := $appconf//appconf:relation[@xml:id=$relation]/@subject/string()
+    let $all-subjects := edwebcontroller:api-get("/api/"||$subject-type||"?show=list")
     let $items :=
         for $r in $relations
-        let $subject-map := $r?subject
+        let $subject-id := $r?subject
+        let $subject-map := $all-subjects[?id = $subject-id]
         order by $subject-map?label
         return
             map:merge((
@@ -1165,7 +1196,8 @@ declare function edweb:view-expand-links(
         then 
             let $object := $link-list?($current-id)
             let $object-type := $object?object-type
-            let $id-types := edwebcontroller:api-get("/api")//appconf:object[@xml:id=$object-type]//appconf:filter[appconf:type="id"]/@xml:id/string()
+            let $appconf := edwebcontroller:api-get("/api")
+            let $id-types := $appconf//appconf:object[@xml:id=$object-type]//appconf:filter[appconf:type="id"]/@xml:id/string()
             let $ids := for $id-type in $id-types return $id-type||":"||$object?filter?($id-type)
             return
                 "?ref="||string-join(($current-id, $ids),'+')
@@ -1324,7 +1356,11 @@ declare function edweb:params-get-page(
 declare function edweb:params-get-page-size(
 ) as xs:integer 
 {
-    request:get-parameter("ps", "50")
+    let $ps := request:get-parameter("ps", request:get-attribute("ps"))
+    return 
+        if ($ps||""="")
+        then "50"
+        else $ps
 };
 
 (:~
@@ -1518,6 +1554,18 @@ declare function edweb:template-do-if-not-empty($node as node(), $model as map(*
     else ()
 };
 
+declare function edweb:template-for-each(
+    $node as node(),
+    $model as map(*),
+    $from as xs:string,
+    $to as xs:string
+)
+{
+    for $item in edweb:insert-string($node, $model, $from)
+    return
+        templates:process($node/node(), map:merge(($model, map:entry($to, $item))))
+};
+
 declare function edweb:template-for-each-group( 
     $node as node(), 
     $model as map(*), 
@@ -1527,7 +1575,10 @@ declare function edweb:template-for-each-group(
 )
 {
     for $group in $model?($from)
-    let $param-group-by := $group?($group-by)
+    let $param-group-by := 
+        if (contains($group-by, '?'))
+        then local:template-get-string($group, $group-by)
+        else $group?($group-by)
     group by $param-group-by
     order by $param-group-by
     return
@@ -1546,7 +1597,7 @@ declare %templates:wrap function edweb:template-show-filters(
     $model as map(*)
 ) as node()* 
 {
-    for $filter in $model?filters?*[?type != "id"]
+    for $filter in $model?filters?*[(?type = ("id","string"))=>not()]
     let $div :=
         <div data-template="edweb:load-filter" data-template-filter-name="{$filter?id}">
             {$node/*}
