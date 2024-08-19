@@ -5,7 +5,7 @@ xquery version "3.1";
  :)
 module namespace edwebcontroller="http://www.bbaw.de/telota/software/ediarum/web/controller";
 
-import module namespace console="http://exist-db.org/xquery/console";
+(: import module namespace console="http://exist-db.org/xquery/console"; :)
 import module namespace functx = "http://www.functx.com";
 
 declare namespace appconf="http://www.bbaw.de/telota/software/ediarum/web/appconf";
@@ -39,7 +39,7 @@ declare function local:api-routing(
 {
     let $f := function-lookup(xs:QName($function), 3)
     return (
-        if (request:get-parameter("id", request:get-attribute("id"))||"" = "all") 
+        if (request:get-parameter("id", request:get-attribute("id"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)
         else if (request:get-parameter("id-type", request:get-attribute("id-type"))||"" != "") 
         then $f("/api", "api/all-list.xql", $params)
@@ -81,8 +81,8 @@ declare function edwebcontroller:api-get(
 ) as item()*
 {
     try {
-        console:log("api-get","Request: "||$api-path)
-        ,
+        (: console:log("api-get","Request: "||$api-path) :)
+        (: , :)
         let $store-attributes := 
             for $att in request:attribute-names()
             let $value := request:get-attribute($att)
@@ -167,6 +167,13 @@ declare function local:api-get-from-pattern(
             )
         )
         else ()
+};
+
+declare function edwebcontroller:base-url(
+) as xs:string
+{
+    substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
+                ||edwebcontroller:get-exist-controller()
 };
 
 (:~
@@ -543,6 +550,31 @@ declare function edwebcontroller:get-exist-root(
     else "/db/apps"
 };
 
+(: Load media files ('css', 'js', 'svg', 'png', 'jpg'). Should be included in controller.xql to avoid loading times. Because otherwise not found resources are forwarded to the error page.
+ :
+ : @param $media-abbrev an individual media suffix can be added.
+ :)
+declare function edwebcontroller:load-media(
+    $media-abbrev as xs:string?
+) as item()*
+{
+    if (
+        edwebcontroller:is-pass-through()
+        and
+        (
+            matches(edwebcontroller:get-exist-path(), ".*\.(css|js|svg|png|jpg)")
+            or
+            ends-with(edwebcontroller:get-exist-path(), "."||$media-abbrev)
+        )
+    )
+    then (
+        local:set-pass-through-false()
+        ,
+       <dispatch xmlns="http://exist.sourceforge.net/NS/exist"></dispatch>
+    )
+    else ()
+};
+
 (:~
  : Forwards the request to a view and set a feed without id, e.g. "/texts/index.html"
  :
@@ -724,6 +756,7 @@ declare function edwebcontroller:redirect-to-id(
     then (
        local:set-pass-through-false()
         ,
+        try {
         let $base-url := substring-before(request:get-uri(), edwebcontroller:get-exist-controller())
                 ||edwebcontroller:get-exist-controller()
         let $id := substring-after(edwebcontroller:get-exist-path(), $starts-with)
@@ -735,6 +768,14 @@ declare function edwebcontroller:redirect-to-id(
             <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
                 <redirect url="{$redirect}"/>
             </dispatch>
+        } catch * {
+            <dispatch xmlns="http://exist.sourceforge.net/NS/exist">
+                <error-handler>
+                    <forward url="{edwebcontroller:get-exist-controller()}/views/static-pages/error-page.html" method="get"/>
+                    <forward url="{edwebcontroller:get-exist-controller()}/modules/view.xql"/>
+                </error-handler>
+            </dispatch>
+        }
     )
     else ()
 };

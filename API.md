@@ -31,14 +31,18 @@ Returns a JSON list with all object IDs to identify by ID which object type a sp
 
 ### 2.1 GET-Parameters
 
-- `id` must be equal to `all`.
+- `id` is the same as the parameter `id-type`.
+- `id-type` possible values are:
+  - `all` get the ids of all objects
+  - `complete` get the ids and properties of all objects
+  - other values: to filter only objects which have a id property of this type, e.g. `id-type=gnd`.
 - optional `limit` defines how many objects of each type are retrieved,
 
 ## 3. List of objects or relations
 
 Returns a list of all items of an object type or relation type as JSON.
 
-For the list of objects see the newer [OPENAPI documentation](openapi.xml).
+For the list of objects see the newer [OPENAPI documentation](openapi.yml).
 
 *Attention: Because of performance issues only 10'000 entries are returned.
 If more are requested please use the `limit` parameter.*
@@ -107,7 +111,7 @@ Uses the the defined search routines and shows the results ordered by score:
 ### 6.1 GET-Parameters
 
 - `q` the query string to be searched for
-- optional `kwic-width` parameter defines the range of characters showed the kwic (key word in context) results.
+- optional `kwic-width` parameter defines the range of characters showed the kwic (key word in context) results. If set to `0` no detailed search-results are shown, which increases the performance.
 - optional `limit` defines how many objects for searching are retrieved, see above [List of objects](#2-list-of-objects-or-relations).
 - optional `type` the type of query. Possible values are:
   - `regex` for a query using regular expressions
@@ -145,5 +149,7 @@ If data is changed and the cache can be rebuild by adding a GET parameter
 to the above API calls:
 
 - `cache`. Possible values are:
-  - `no` cache is rebuild if newer data exists
-  - `reset` cache is always rebuild (exception: cache is not rebuild if it is newer than 1 minute)
+  - `off`: No cache is used or build.
+  - `yes`: If available cache is always used.
+  - (default) `no`: Cache is rebuild if newer data exists.
+  - `reset`: Cache is always rebuild.

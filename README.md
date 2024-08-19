@@ -1,6 +1,6 @@
 # ediarum.WEB
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3958831.svg)](https://doi.org/10.5281/zenodo.3958831)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3958830.svg)](https://doi.org/10.5281/zenodo.3958830)
 
 © 2020 by Berlin-Brandenburg Academey of Sciences and Humanities
 
@@ -10,13 +10,21 @@ telota@bbaw.de
 
 For more infomation about **ediarum** see www.ediarum.org.
 
-Lead Developer:
+Ediarum Core Team:
+
+* Nadine Arndt
+* Martin Fechner
+* Jan Wierzoch
+
+Lead Developer of ediarum.WEB:
 
 * Martin Fechner
 
-Thanks to: 
+Thanks to https://github.com/Kolophonium0 for contributing!
 
-* Theodor Costea for development support
+Former supporters:
+
+* Theodor Costea
 
 ## What does it do?
 
@@ -41,7 +49,9 @@ The use and setup of **features** is documented at [FEATURES.md](FEATURES.md).
 
 An overview of the **libraries** is given at [LIBRARIES.md](LIBRARIES.md).
 
-## Development
+## Contributing
+
+Thank you for considering contributing to ediarum.WEB!
 
 To build a new xar package use Apache ANT (https://ant.apache.org/):
 
@@ -78,8 +88,8 @@ Font Awesome 4.6.3 by @davegandy - http://fontawesome.io - @fontawesome
 * Font: SIL OFL 1.1 (https://scripts.sil.org/OFL)
 * CSS: MIT License (https://opensource.org/licenses/MIT)
 
-### jQuery v1.11.3 
+### jQuery v3.7.0
 
-(c) 2005, 2015 jQuery Foundation, Inc. 
+(c) OpenJS Foundation and other contributors
 
 * jquery.org/license

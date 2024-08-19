@@ -10,6 +10,7 @@
     - [Label property](#label-property)
     - [ID property](#id-property)
     - [Relation property](#relation-property)
+    - [JSON Property](#json-property)
   - [3.3 Views / XSLTs](#33-views--xslts)
     - [Base information](#base-information-1)
   - [3.4 Parts and reference points](#34-parts-and-reference-points)
@@ -60,7 +61,7 @@ It must be defined how the project is name (serves as ID as well) and where to f
 
 - `name` defines the project name/ID.
 - `status` defines the status of the current instance. It is be used to distinguish test instance, internal instance and public instance.
-- `collection` a absolute path to the root collection of the project data in the database.
+- `collection` a absolute path or a path relative to the appconf.xml to the root collection of the project data in the database.
 
 ```xml
 <project>
@@ -89,11 +90,12 @@ The basic information for an object type defines where to find the objects in th
 
 - `object/@xml:id` ID of the object type.
 - `name` name of the object type. Can be used in the frontend.
-- `collection` a relative path to the collection or to a resource where to search for objects.
+- `collection` a relative path to the collection or to a resource where to search for objects. It mustn't contain an upward pointing path like `/../`. **Attention:** If this collection is a subcollection of another defined object-type, this collection is excluded from the other object-type. That is, no items of the other object-type inside this collection will be found. To avoid this behaviour set here the same collection as for the other object-type. If a collection is unset here, one has to manually remove the `collection.xconf` file from the corresponding collection `/db/system/config/my-project-collection-path/my-unset-object-collection-path/collection.xconf` and reindex.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
-- `item/root` XPath expression of the root element of every object.
+- `item/root` QName expression of the root element of every object. It only must contain a qualified name, e.g. `tei:TEI`.
+- `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as objects.
 - `item/id` XPath expression where to find the ID of an object. This is also used as a ID property (see below).
-- `label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one node as parameter: `function($node) { ... }`.
+- `item/label` with `@type` a XPath or XQuery expression to define the label of the object. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one node as parameter: `function($node) { ... }`.
 
 ```xml
 <object xml:id="personen">
@@ -102,10 +104,36 @@ The basic information for an object type defines where to find the objects in th
     <item>
         <namespace id="tei">http://www.tei-c.org/ns/1.0</namespace>
         <root>tei:TEI</root>
+        <condition>@type = 'person'</condition>
         <id>.//tei:publicationStmt/tei:idno</id>
         <label type="xpath">.//(tei:head[@type='entry']/tei:persName | tei:div[@subtype="otherNames"]//tei:p)/normalize-space()</label>
     </item>
     ...
+</object>
+```
+
+It is also possible to parse a JSON file instead of XML nodes. The JSON file are not indexed, so it doesn't support searches. For this use the following definitions:
+
+- `object/@xml:id` ID of the object type.
+- `name` name of the object type. Can be used in the frontend.
+- `json-file` a relative path to the json file containing all objects.
+- `item/id` with `@type="json"` a map expression where to find the ID of an object. This is also used as a ID property (see below). Due to the use of ID in the URL all `:` and `/` in the ID are replaced with `-` resp. `/`.
+- `item/label` with `@type="json"` a map expression to define the label of the object.
+- optional `item/label-function` with `@type="xquery"` a XQuery function which can manipulate the property values further. It receives always one string: `function($string) { ... }`.
+
+*Map expressions are the following: `.` for the whole map; `key` or `key?subkey` for single entries; `*` for all entries*
+
+```xml
+ <object xml:id="persons">
+    <name>Personen</name>
+    <json-file>/Register/Personen.json</json-file>
+    <item>
+        <id type="json">PersonID</id>
+        <label type="json">.</label>
+        <label-function type="xquery">
+            function($map) { string-join(($map?forename?*?eng, $map?surname?*?eng),' ') }
+        </label-function>
+    </item>
 </object>
 ```
 
@@ -140,7 +168,7 @@ All property definitions share the following structure:
   - `intersect` multiple properties can be selected, items which have all of the selected properties are shown.
   - `greater-than` for numeric properties. Only items with values greater than a defined one are shown.
   - `lower-than` for numeric properties. Only item with values lower than a defined one are shown.
-- `label-function` with `@type='xquery'` a XQuery function which can manipulate the property values further. It receives always one string: `function($string) { ... }`.
+- optional `label-function` with `@type='xquery'` a XQuery function which can manipulate the property values further. It receives always one string: `function($string) { ... }`.
 
 Example:
 
@@ -155,9 +183,19 @@ Example:
 </filter>
 ```
 
+Or for a JSON file:
+
+```xml
+<filter xml:id="forename-eng">
+    <name>Name</name>
+    <type>string</type>
+    <json>forename?*?eng</json>
+</filter>
+```
+
 #### XPath Property
 
-- `xpath` defines a XPath expression to get the property value.
+- `xpath` defines a XPath expression to get the property value. Doesn't work with JSON files.
 
 Example:
 
@@ -174,7 +212,7 @@ Example:
 
 #### Label property
 
-- `root/@type` must be equal to `label`.
+- `root/@type` must be equal to `label`. Doesn't work with JSON files.
 
 Example:
 
@@ -191,7 +229,7 @@ Example:
 
 #### ID property
 
-- `type` must be equal to `id`.
+- `type` must be equal to `id`. Doesn't work with JSON files.
 
 Example:
 
@@ -208,7 +246,7 @@ Example:
 
 #### Relation property
 
-- `filter/@type` must be equal to `relation`.
+- `filter/@type` must be equal to `relation`. Doesn't work with JSON files.
 - `relation/@id` the ID of the relation definition.
 - `relation/@as` defines if the current item is defined as 'object' or as 'subject' of the relation.
 - `label` defines which should be used as label. Possible values are: 'id', 'predicate', and 'id+predicate'.
@@ -223,6 +261,21 @@ Example:
     <label>predicate</label>
     <label-function type="xquery">
         function($string) {$string}
+    </label-function>
+</filter>
+```
+
+#### JSON Property
+
+- for JSON objects use `json` the map expression where to find the property values.
+
+```xml
+<filter xml:id="name-eng">
+    <name>Name</name>
+    <type>string</type>
+    <json>forename?eng</json>
+    <label-function type="xquery">
+        function($map) { string-join(($map?forename, $map?surname), " ") }
     </label-function>
 </filter>
 ```
@@ -337,7 +390,7 @@ Reference an TEI document by pagebreaks and linebreaks:
 
 ### 3.5 Search index
 
-For each object type it is possible to define an search index.
+For each object type it is possible to define an search index. For objects from JSON files searches are not supported.
 
 Example, where to define an index:
 
@@ -406,8 +459,9 @@ The basic information for an relation type defines where to find the relations i
 - `name` Label of the relation type.
 - `collection` a relative path to the collection where to search for relations.
 - one or more `item/namespace` with `@id` defines a namespace used in the following XPath expressions. `@id` defines the ns prefix.
-- `item/root` XPath expression of the root element of every relation.
+- `item/root` QName of the root element of every relation.
 - `item/id` XPath expression where to find the ID of an object.
+- `item/condition` optional XPath expression of type boolean to define only some of the defined nodes as relations. **Attention:** The XPath expression is relative to the root, it must contain `.` to address the root. E.g. `./@key` instead of `/@key`.
 - `label` with `@type` a XPath or XQuery expression to define the label of the relation and is used as predicate in a relation expression. `@type` must be `xpath` or `xquery`. A XQuery is always a function with one string as parameter: `function($string) { ... }`.
 
 ```xml
@@ -416,7 +470,8 @@ The basic information for an relation type defines where to find the relations i
     <collection>/Handschriften</collection>
     <item>
         <namespace id="tei">http://www.tei-c.org/ns/1.0</namespace>
-        <root>tei:term[@key]</root>
+        <root>tei:term</root>
+        <condition>./@key</condition>
         <label type="xquery">
             function ($node as node()) {
             'Enthaltener Begriff'
@@ -437,9 +492,21 @@ The basic information for an relation type defines where to find the relations i
 The subject and object conditions are used to define how to link a specific subject and object to a relation:
 
 - `subject-condition` a XQuery function which must return true if an entity is equal to the subject of the relation.
+  - `subject-condition@type` optional with following values:
+    - `id` define a xpath-expression of the relation to compare with the subject ids.
+    - `id-type` define a xpath-expression of the relation to compare with subject id properties. Requires `@filter` to be set.
+    - `resource` defines that the relation node is contained by the same resource as the subject.
+  - `subject-condition@filter` to be used with `id-type` to specify which filter property is used.
 - `object-condition` a XQuery function which must return true if an entity is equal to the object of the relation.
+  - `object-condition@type` optional with following values:
+    - `id` define a xpath-expression of the relation to compare with the object ids.
+    - `id-type` define a xpath-expression of the relation to compare with object id properties. Requires `@filter` to be set.
+    - `resource` defines that the relation node is contained by the same resource as the subject.
+  - `object-condition@filter` to be used with `id-type` to specify which filter property is used.
 
-Both XQuery function have the form:
+*Attention:* If possible always some of the above conditions (with `@type`) should be used. Because then the eXist-db indexes are used and performance is better.
+
+Both XQuery functions (if `@type` is omitted) have the form:
 
 ```
 function ($this as map(*), $subject as map(*)) as xs:boolean
@@ -467,7 +534,7 @@ The parameter are the following:
 
 ## 5. Definition of a search routine
 
-It is possible to define search routines which can search within multiple object types. All objects with hits are returned ordered by the search score, see [http://exist-db.org/exist/apps/doc/lucene.xml#query](http://exist-db.org/exist/apps/doc/lucene.xml#query).
+It is possible to define search routines which can search within multiple object types. All objects with hits are returned ordered by the search score, see [http://exist-db.org/exist/apps/doc/lucene.xml#query](http://exist-db.org/exist/apps/doc/lucene.xml#query). Searches don't work with objects from JSON files.
 
 ```xml
 <config>

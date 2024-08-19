@@ -15,6 +15,7 @@
         <copy todir=".">
             <fileset dir="${project.app.folder}">
                 <include name="expath-pkg.xml.ant"/>
+                <include name="CITATION.cff.ant"/>
             </fileset>
             <globmapper from="*.ant" to="*"/>
             <filterset>

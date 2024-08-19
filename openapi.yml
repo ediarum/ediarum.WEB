@@ -55,9 +55,17 @@ paths:
             default: 10000
         - name: order
           in: query
-          description: By which the list should be ordered
+          description: By which the list should be ordered. Can be `label` or a defined property.
           schema:
             type: string # TODO there are some values
+        - name: order-modifier
+          in: query
+          description: If the list should be ordered `ascending` (default) or `descending`.
+          schema:
+            type: string
+            enum:
+              - ascending
+              - descending
         - name: page
           in: query
           description: Defines which page of list results should be returned. To be used with `range`.
@@ -68,20 +76,9 @@ paths:
           description: How many items should be return. To be used with `page` or `from`.
           schema:
             type: integer
-        - name: search
-          in: query
-          description: Filters the objects by a search. Can be combined with other filters. To be used with `show=(all, compact, list)`.
-          schema:
-            type: string
-        - name: search-type
-          in: query
-          description: To be used with `search`. If not set, the exact matches are found. Multiple words are separated with a space.
-          schema:
-            type: string
-            enum:
-              - regex  # for one or more words (separated by space) using regular expressions
-              - phrase # for a query of multiple words. With `slop` the distance can be defined (default is 1).
-              - lucene # for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
+        - $ref: '#/components/parameters/searchParam'
+          description: Query expression to search within the object. With `distance` search it must contains a `~` to separate the two regular expressions. Filters the objects by a search. Can be combined with other filters. To be used with `show=(all, compact, list)`.
+        - $ref: '#/components/parameters/searchTypeParam'
         - name: show
           in: query
           description: What should be retrieved
@@ -92,11 +89,8 @@ paths:
               - compact # show all objects but in compact form, i.e. without properties
               - filter # show the filter definitions
               - list # show objects matching the filter criteria
-        - name: slop
-          in: query
-          description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
-          schema:
-            type: integer
+              - full # show relations with full objects in 'subject' and 'object' and include xml in output; Warning: due to large JSON-output, this can lead to memory problems.
+        - $ref: "#/components/parameters/slopParam"
       responses:
         '200':
           description: OK
@@ -268,10 +262,6 @@ components:
           type: integer
           description: number of all objects
           example: 704
-        results-shown:
-          type: integer
-          description: number of objects in `list`. Equals to `results-found` if equal or lower then the `limit` parameter
-          example: 12
     Filter:
       type: object
       properties:
@@ -319,9 +309,14 @@ components:
           example: Manuscript No. 012345
         label-filter:
           type: array
-          description: values if defined
+          description: map of label filters
           items:
-            type: string
+            type: object
+            description: values for this label
+            additionalProperties:
+              type: array
+              items:
+                type: string
         labels:
           type: array
           description: list of labels of object
@@ -333,17 +328,39 @@ components:
           description: list of object properties
           properties:
             id:
-              type: string
-              example: M012345
+              type: array
+              items:
+                type: string
+                example: M012345
           required:
             - "id"
           additionalProperties:
-            type: string
+            type: array
+            items:
+              type: string
+        json:
+          type: object
+          description: the original json object
         object-type:
           type: string
           description: type of object
           example: manuscripts
         search-results:
+          oneOf:
+            - type: object
+              properties:
+                keyword-1:
+                  type: string
+                  description: first keyword of match
+                  example: "whole"
+                keyword-2:
+                  type: string
+                  description: last keyword of match
+                  example: "text"
+                context:
+                  type: string
+                  description: context of the match incl. the keywords
+                  example: "whole phrase of the search text"
           type: array
           description: contains an array of hits, if a search was triggered.
           items:
@@ -501,19 +518,28 @@ components:
     searchParam:
       name: search
       in: query
-      description: Query expression to search within the object.
+      description: Query expression to search within the object. With `distance` search it must contains a `~` to separate the two regular expressions. For better performance set `kwic-width` to `0`. Searches don't work with JSON objects.
       schema:
         type: string
     searchTypeParam:
       name: search-type
       in: query
-      description: To be used with `search`. If not set the exact matches are found. Multiple words are separated with a space.
+      description: |
+        To be used with `search`. If not set the exact matches are found. Multiple words are separated with a space.
+
+        - `regex` for one or more words (separated by space) using regular expressions;
+        - `phrase` for a query of multiple words. With `slop` the distance can be defined (default is 1);
+        - `lucene` for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>;
+        - `distance` for a distance query using regular expressions, showing only the first match of each object;
+        - `distance-all-matches` for a distance query showing all matches.
       schema:
         type: string
         enum:
-          - regex # for one or more words (separated by space) using regular expressions
-          - phrase # for a query of multiple words. With `slop` the distance can be defined (default is 1).
-          - lucene # for a lucene query, see <https://lucene.apache.org/core/2_9_4/queryparsersyntax.html>
+          - regex
+          - phrase
+          - lucene
+          - distance
+          - distance-all-matches
     searchXpathParam:
       name: search-xpath
       in: query
@@ -523,13 +549,13 @@ components:
     slopParam:
       name: slop
       in: query
-      description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase`.
+      description: The distance of words in a phrase search. To be used with `search` and `search-type=phrase` or `search-type=distance`.
       schema:
         type: integer
     kwicWidthParam:
       name: kwic-width
       in: query
-      description: The range of characters shown before and after the match in the hit.
+      description: The range of characters shown before and after the match in the hit. If set to `0` no context of the search result is shown.
       schema:
         type: integer
       example: 20
