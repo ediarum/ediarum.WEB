@@ -77,7 +77,47 @@ declare function local:milestone-chunk($ms1 as node(), $node as node()) as node(
             else ()
 };
 
-declare function local:get-part($map as map(*), $object as node(), $parts as node()+) {
+declare function local:init-params(
+    $param-names as xs:string*
+) as map() 
+{
+    map:merge((
+        for $p in $param-names
+        return map:entry($p, request:get-parameter($p, request:get-attribute($p)))
+    ))
+};
+
+declare function local:get-part-as($object as map(*), $part as node(), $view as xs:string?, $params as map(*)?){
+    let $xsl-path := $object?views?($view)?xslt
+    let $path := request:get-parameter("app-target", request:get-attribute("app-target"))||"/"||$xsl-path
+    let $stylesheet := 
+        if (doc($path)) 
+        then doc($path) 
+        else error(xs:QName("edwebapi:get-object-part-as-001"), $path||" not found.")
+    let $parameters :=
+        <parameters>
+            <param name="exist:stop-on-error" value="yes"/> 
+            { 
+                for $param in map:keys($params)
+                return element param {
+                    attribute name { $param },
+                    attribute value { $params?($param) }
+            }
+        } </parameters>
+    let $result :=
+        try {
+            transform:transform($part, $stylesheet, $parameters)
+        } 
+        catch * {
+            error(xs:QName("edwebapi:get-object-as-002"), "Can't transform "
+                ||util:collection-name($part)||"/"||util:document-name($part)||" with "
+                ||$path)
+        }
+    return $result
+};
+
+
+declare function local:get-part($map as map(*), $object as node(), $parts as node()+, $view as xs:string?) {
     let $xmlid := $parts[1]/@key/string()
     let $root := $map?parts?($xmlid)?root
     let $id := $map?parts?($xmlid)?id
@@ -86,6 +126,7 @@ declare function local:get-part($map as map(*), $object as node(), $parts as nod
     let $ms1 := util:eval-inline($object, $xpath)
     let $following-xpath := $xpath || "/following::" || $root || "[1]"
     let $ms2 := util:eval-inline($object, $following-xpath)
+    let $view-params := local:init-params((tokenize($map?views?($view)?params,' ')))
     let $chunk := 
         if ($ms2) then
             local:milestone-chunk($ms1, $ms2, $object)    
@@ -93,7 +134,9 @@ declare function local:get-part($map as map(*), $object as node(), $parts as nod
             local:milestone-chunk($ms1, $object)
     return
         if ($parts[2]) then 
-            local:get-part($map, $chunk, subsequence($parts, 2))
+            local:get-part($map, $chunk, subsequence($parts, 2), $view)
+        else if ($view != "") then
+            local:get-part-as($map, $chunk, $view, $view-params)
         else
             $chunk
 };
@@ -110,7 +153,7 @@ let $search-xpath := request:get-parameter("search-xpath", request:get-attribute
 
 let $slop := request:get-parameter("slop", request:get-attribute("slop"))
 let $kwic-width := request:get-parameter("kwic-width", request:get-attribute("kwic-width"))
-
+let $view := request:get-parameter("view", request:get-attribute("view"))
 let $map :=
     if ($search-query||"" != "")
     then
@@ -128,6 +171,5 @@ let $parts :=
                 edwebcontroller:read-path-variables($object-part, $path-pattern, "[\w\d]+")
             ) else ()
 
-return local:get-part($map, $object, $parts)
-
+return local:get-part($map, $object, $parts, $view)
 
