@@ -1293,7 +1293,7 @@ declare function edwebapi:order-items(
                                 $item?filter,
                                 map:merge((
                                     for $fk in map:keys($item?label-filter) return
-                                        map:entry($fk, $item?label-filter?($fk)?*[$pos])
+                                        map:entry($fk, $item?label-filter?($fk)?*[$label])
                                 ))
                             ))
                         ),
