@@ -304,9 +304,9 @@ Example, where to define a view:
 The basic information for a view defines where to find the XSLT for the transformation.
 
 - `view/@id` ID of the view used by api calls.
-- `xslt` relative path (from app root) to the XSLT. 
 - `label` label of the view, can be shown in the frontend.
-- `label/@params` possible XSLT parameters are specified here. Multiple parameters must be separated with a whitespace.
+- `xslt` relative path (from app root) to the XSLT. 
+- `xslt/@params` possible XSLT parameters are specified here. Multiple parameters must be separated with a whitespace.
 
 ```xml
 <view id="default">
